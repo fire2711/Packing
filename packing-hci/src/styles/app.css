@@ -1,0 +1,278 @@
+:root {
+  --bg: #0b1220;
+  --card: rgba(255, 255, 255, 0.06);
+  --border: rgba(255, 255, 255, 0.10);
+  --text: #e8eefc;
+  --muted: rgba(232, 238, 252, 0.72);
+  --primary: #5b8cff;
+  --accent: #22c55e;
+
+  --surface-1: rgba(255, 255, 255, 0.03);
+  --surface-2: rgba(255, 255, 255, 0.05);
+  --surface-3: rgba(255, 255, 255, 0.08);
+  --shadow-1: 0 14px 40px rgba(0, 0, 0, 0.45);
+  --radius-1: 12px;
+  --radius-2: 16px;
+}
+
+body {
+  background: radial-gradient(900px 500px at 15% 0%, rgba(91, 140, 255, 0.25), transparent),
+    radial-gradient(700px 450px at 90% 10%, rgba(34, 197, 94, 0.16), transparent), var(--bg);
+  color: var(--text);
+}
+
+.card,
+.card-body,
+.list-group-item,
+.navbar,
+.dropdown-menu {
+  color: var(--text);
+}
+
+.text-secondary,
+.text-muted {
+  color: var(--muted) !important;
+}
+
+.form-label,
+label,
+.form-check-label {
+  color: rgba(232, 238, 252, 0.92) !important;
+}
+
+.form-control,
+.form-select {
+  background: var(--surface-3) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text) !important;
+  border-radius: var(--radius-1) !important;
+}
+
+.form-control::placeholder {
+  color: rgba(232, 238, 252, 0.55) !important;
+}
+
+select option {
+  background: #0f172a;
+  color: var(--text);
+}
+
+.card-modern {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-2) !important;
+  backdrop-filter: blur(10px);
+}
+
+.btn-modern {
+  border-radius: var(--radius-1) !important;
+}
+
+.btn-modern-outline {
+  border-radius: var(--radius-1) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  color: var(--text) !important;
+}
+
+.btn-modern-outline:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* list of trips */
+.list-group-modern .list-group-item {
+  background: var(--surface-1) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: var(--text) !important;
+}
+
+.list-group-modern .list-group-item.active {
+  background: rgba(91, 140, 255, 0.22) !important;
+  border-color: rgba(91, 140, 255, 0.35) !important;
+}
+
+/* progress bar */
+.progress-modern {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.progress-bar-modern {
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+}
+
+.badge.text-bg-light,
+.badge.rounded-pill.text-bg-light {
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: rgba(232, 238, 252, 0.90) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.badge.text-bg-secondary {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: rgba(232, 238, 252, 0.85) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+}
+
+.kebab {
+  position: relative;
+  margin-left: 8px;
+}
+
+.kebab summary::-webkit-details-marker {
+  display: none;
+}
+
+.kebab-btn {
+  cursor: pointer;
+  user-select: none;
+  border: none;
+  background: transparent;
+  padding: 2px 8px;
+  border-radius: 10px;
+  line-height: 1.2;
+  color: var(--text);
+}
+
+.kebab-btn:hover {
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.kebab-menu {
+  position: absolute;
+  right: 0;
+  top: 28px;
+  min-width: 170px;
+  background: rgba(16, 22, 35, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: var(--shadow-1);
+  z-index: 30;
+}
+
+/* Force menu text visibility */
+.kebab-item {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 10px 10px;
+  border-radius: 10px;
+  color: rgba(232, 238, 252, 0.92);
+  font-weight: 650;
+}
+
+.kebab-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.kebab-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.10);
+  margin: 6px 4px;
+}
+
+.kebab-danger {
+  color: rgba(248, 113, 113, 0.95);
+}
+
+.list-group-item {
+  background: var(--surface-2) !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  color: rgba(232, 238, 252, 0.95) !important;
+}
+
+.list-group-item label,
+.list-group-item .form-check-label {
+  color: rgba(232, 238, 252, 0.95) !important;
+}
+
+.list-group-item .text-secondary,
+.list-group-item .small {
+  color: rgba(232, 238, 252, 0.65) !important;
+}
+
+.list-group-item .text-decoration-line-through {
+  color: rgba(232, 238, 252, 0.65) !important;
+}
+
+/* checkboxes */
+.form-check-input {
+  cursor: pointer;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+}
+
+.form-check-input:checked {
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+.form-check-label {
+  cursor: pointer;
+}
+
+/* trip page */
+.card {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-2) !important;
+  backdrop-filter: blur(10px);
+}
+
+.card * {
+  color: rgba(232, 238, 252, 0.92);
+}
+
+.card .form-control,
+.card .form-select {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  color: rgba(232, 238, 252, 0.92) !important;
+}
+
+.card .form-control::placeholder {
+  color: rgba(232, 238, 252, 0.55) !important;
+}
+
+.btn.btn-outline-primary.btn-sm {
+  border-radius: 999px !important;
+  border-color: rgba(91, 140, 255, 0.55) !important;
+  color: rgba(232, 238, 252, 0.92) !important;
+}
+
+.btn.btn-outline-primary.btn-sm:hover {
+  background: rgba(91, 140, 255, 0.18) !important;
+}
+
+.card.h-100:hover {
+  border-color: rgba(91, 140, 255, 0.30) !important;
+}
+
+.btn.btn-outline-danger.btn-sm {
+  border-radius: var(--radius-1) !important;
+  border-color: rgba(248, 113, 113, 0.55) !important;
+  color: rgba(248, 113, 113, 0.95) !important;
+}
+
+.btn.btn-outline-danger.btn-sm:hover {
+  background: rgba(248, 113, 113, 0.12) !important;
+}
+
+/* navbar */
+.navbar {
+  background: rgba(10, 16, 30, 0.75) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10) !important;
+  backdrop-filter: blur(10px);
+}
+
+.navbar .navbar-brand,
+.navbar a,
+.navbar .btn {
+  color: rgba(232, 238, 252, 0.95) !important;
+}
+
+.navbar .btn.btn-primary {
+  color: white !important;
+}
