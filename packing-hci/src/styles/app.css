@@ -276,3 +276,57 @@ select option {
 .navbar .btn.btn-primary {
   color: white !important;
 }
+
+.dashboard-checklist-group {
+  gap: 0.35rem;
+  background: transparent;
+}
+
+.dashboard-category {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 0.75rem;
+}
+
+.dashboard-category + .dashboard-category {
+  margin-top: 0.35rem;
+}
+
+.dashboard-category-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.95rem 1rem;
+  cursor: pointer;
+  user-select: none;
+  color: inherit;
+  text-align: left;
+}
+
+.dashboard-category-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.dashboard-category-icon {
+  width: 1rem;
+  text-align: center;
+  font-weight: 700;
+  opacity: 0.75;
+  line-height: 1;
+}
+
+.dashboard-category-content {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.22s ease;
+}
+
+.dashboard-category-content-open {
+  grid-template-rows: 1fr;
+}
+
+.dashboard-category-content > div {
+  overflow: hidden;
+}

@@ -23,22 +23,8 @@ const TAG_ITEMS = {
   swimming: ["Swimsuit", "Goggles", "Swim cap"],
 };
 
-export function guessCategory(name) {
-  const n = String(name || "").toLowerCase();
-
-  if (/(charger|laptop|phone|adapter|camera|airpods|headphones|power bank|portable charger|battery)/.test(n))
-    return "electronics";
-
-  if (/(passport|id|ticket|boarding pass|visa|insurance|reservation|itinerary)/.test(n))
-    return "documents";
-
-  if (/(tooth|shampoo|soap|deodorant|razor|lotion|sunscreen|conditioner|face wash|contacts)/.test(n))
-    return "toiletries";
-
-  if (/(shirt|pants|socks|underwear|jacket|hoodie|shoe|shoes|swimsuit|dress|belt|beanie|gloves|hat)/.test(n))
-    return "clothes";
-
-  return "misc";
+function qtyLabel(name, qty) {
+  return `${qty} ${name}`;
 }
 
 function uniqStrings(list) {
@@ -57,22 +43,87 @@ function uniqStrings(list) {
   return out;
 }
 
+export function normalizeSuggestionName(name) {
+  return String(name || "").trim().toLowerCase();
+}
+
+export function guessCategory(name) {
+  const n = String(name || "").toLowerCase();
+
+  if (
+    /(charger|laptop|phone|adapter|camera|airpods|headphones|power bank|portable charger|battery|tablet|watch charger)/.test(n)
+  ) {
+    return "electronics";
+  }
+
+  if (
+    /(passport|id|ticket|boarding pass|visa|insurance|reservation|itinerary|badge|travel docs|entry docs)/.test(n)
+  ) {
+    return "documents";
+  }
+
+  if (
+    /(tooth|shampoo|soap|deodorant|razor|lotion|sunscreen|conditioner|face wash|contacts|toiletry|detergent|bug spray)/.test(n)
+  ) {
+    return "toiletries";
+  }
+
+  if (
+    /(shirt|pants|shorts|socks|underwear|jacket|hoodie|shoe|shoes|swimsuit|dress|belt|beanie|gloves|hat|outfit|thermal|layers|sleepwear|flip flops)/.test(n)
+  ) {
+    return "clothes";
+  }
+
+  return "misc";
+}
+
+function buildQuantityItems(days) {
+  const d = Math.max(1, Number(days) || 1);
+
+  return [
+    qtyLabel("shirts", d),
+    qtyLabel("underwear", d),
+    qtyLabel("pairs of socks", d),
+    qtyLabel("pairs of pants", Math.max(1, Math.ceil(d / 2))),
+    "Sleepwear",
+  ];
+}
+
+function buildDurationExtras(days) {
+  const d = Math.max(1, Number(days) || 1);
+  const extras = [];
+
+  if (d >= 3) {
+    extras.push("Toothbrush", "Toothpaste", "Toiletry bag");
+  }
+
+  if (d >= 5) {
+    extras.push("Laundry bag", "Extra pair of shoes");
+  }
+
+  if (d >= 7) {
+    extras.push("Detergent pods");
+  }
+
+  return extras;
+}
+
 export function buildSuggestions({ trip_type, days, tags = [], frequentNames = [] }) {
   const type = trip_type || "general";
   const base = BASE_ITEMS_BY_TYPE[type] || BASE_ITEMS_BY_TYPE.general;
 
-  const out = [...base];
+  const learnedSet = new Set((frequentNames || []).map((x) => normalizeSuggestionName(x)));
 
-  const d = Number(days || 3);
-
-  if (d >= 4) out.push("Toothbrush", "Toothpaste");
-  if (d >= 5) out.push("Extra socks", "Extra underwear");
-  if (d >= 7) out.push("Laundry bag", "Detergent pods");
+  const out = [
+    ...buildQuantityItems(days),
+    ...base,
+    ...buildDurationExtras(days),
+  ];
 
   const tagList = Array.isArray(tags) ? tags : [];
   for (const t of tagList) {
     const items = TAG_ITEMS[t];
-    if (items && items.length) out.push(...items);
+    if (items?.length) out.push(...items);
   }
 
   out.push(...(frequentNames || []).slice(0, 10));
@@ -82,5 +133,6 @@ export function buildSuggestions({ trip_type, days, tags = [], frequentNames = [
   return unique.map((name) => ({
     name,
     category: guessCategory(name),
+    learned: learnedSet.has(normalizeSuggestionName(name)),
   }));
 }

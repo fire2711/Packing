@@ -33,9 +33,9 @@ export default function Dashboard() {
   const [previewItems, setPreviewItems] = useState([]);
   const [previewLoading, setPreviewLoading] = useState(false);
 
-  // preview filters
   const [onlyUnpacked, setOnlyUnpacked] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [openCategories, setOpenCategories] = useState({});
 
   const selectedTrip = useMemo(() => {
     return trips.find((t) => t.id === selectedTripId) || null;
@@ -59,9 +59,35 @@ export default function Dashboard() {
     if (onlyUnpacked) out = out.filter((i) => !i.packed);
     if (categoryFilter !== "all") out = out.filter((i) => i.category === categoryFilter);
 
-    // unpacked first
-    return [...out].sort((a, b) => Number(a.packed) - Number(b.packed));
+    return [...out].sort((a, b) => {
+      if (Number(a.packed) !== Number(b.packed)) return Number(a.packed) - Number(b.packed);
+      return (a.name || "").localeCompare(b.name || "");
+    });
   }, [previewItems, onlyUnpacked, categoryFilter]);
+
+  const groupedPreviewItems = useMemo(() => {
+    const groups = Object.fromEntries(CATEGORIES.map((c) => [c, []]));
+
+    for (const item of previewItemsFiltered) {
+      const cat = groups[item.category] ? item.category : "misc";
+      groups[cat].push(item);
+    }
+
+    return groups;
+  }, [previewItemsFiltered]);
+
+  const visibleCategories = useMemo(() => {
+    if (categoryFilter !== "all") return [categoryFilter];
+    return CATEGORIES.filter((cat) => groupedPreviewItems[cat]?.length);
+  }, [categoryFilter, groupedPreviewItems]);
+
+  useEffect(() => {
+    const nextOpen = {};
+    visibleCategories.forEach((cat, idx) => {
+      nextOpen[cat] = categoryFilter !== "all" ? true : idx === 0;
+    });
+    setOpenCategories(nextOpen);
+  }, [selectedTripId, categoryFilter]);
 
   async function refreshTrips() {
     setErr("");
@@ -70,13 +96,11 @@ export default function Dashboard() {
       const data = await fetchTrips();
       setTrips(data);
 
-      // pick a sane selected trip
       if (!data.length) {
         setSelectedTripId(null);
         return;
       }
 
-      // if nothing selected yet, pick first
       if (!selectedTripId) {
         setSelectedTripId(data[0].id);
         return;
@@ -117,14 +141,25 @@ export default function Dashboard() {
   async function togglePacked(item) {
     const nextPacked = !item.packed;
 
-    setPreviewItems((prev) => prev.map((x) => (x.id === item.id ? { ...x, packed: nextPacked } : x)));
+    setPreviewItems((prev) =>
+      prev.map((x) => (x.id === item.id ? { ...x, packed: nextPacked } : x))
+    );
 
     try {
       await updateItem(item.id, { packed: nextPacked });
     } catch (e) {
-      setPreviewItems((prev) => prev.map((x) => (x.id === item.id ? { ...x, packed: item.packed } : x)));
+      setPreviewItems((prev) =>
+        prev.map((x) => (x.id === item.id ? { ...x, packed: item.packed } : x))
+      );
       setErr(safeMsg(e, "Failed to update item"));
     }
+  }
+
+  function toggleCategory(cat) {
+    setOpenCategories((prev) => ({
+      ...prev,
+      [cat]: !prev[cat],
+    }));
   }
 
   function goNewTrip() {
@@ -181,7 +216,6 @@ export default function Dashboard() {
 
   return (
     <div className="container py-4">
-      {/* Header */}
       <div className="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
         <div>
           <h1 className="h3 mb-1">Dashboard</h1>
@@ -196,7 +230,11 @@ export default function Dashboard() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <button className="btn btn-primary btn-modern" style={{ whiteSpace: "nowrap" }} onClick={goNewTrip}>
+          <button
+            className="btn btn-primary btn-modern"
+            style={{ whiteSpace: "nowrap" }}
+            onClick={goNewTrip}
+          >
             New Trip
           </button>
         </div>
@@ -208,7 +246,9 @@ export default function Dashboard() {
         <div className="card card-modern">
           <div className="card-body">
             <h5 className="card-title">No trips yet</h5>
-            <p className="card-text text-secondary">Create your first list and it’ll show up here.</p>
+            <p className="card-text text-secondary">
+              Create your first list and it’ll show up here.
+            </p>
             <button className="btn btn-primary btn-modern" onClick={goNewTrip}>
               Create a trip
             </button>
@@ -216,7 +256,6 @@ export default function Dashboard() {
         </div>
       ) : (
         <div className="row g-3">
-          {/* Trip list */}
           <div className="col-12 col-lg-5">
             <div className="card card-modern">
               <div className="card-body">
@@ -235,15 +274,18 @@ export default function Dashboard() {
                         }`}
                         onClick={() => setSelectedTripId(t.id)}
                       >
-                        <div className="me-2">
+                        <div className="me-2 text-start">
                           <div className="fw-semibold">{t.name || "Untitled trip"}</div>
                           <div className={`${active ? "text-white-50" : "text-secondary"} small`}>
                             {t.trip_type} • {t.days} days
                           </div>
                         </div>
 
-                        {/* 3 dots menu: Edit / Delete */}
-                        <details className="kebab" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                        <details
+                          className="kebab"
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        >
                           <summary className="kebab-btn">⋮</summary>
                           <div className="kebab-menu">
                             <button
@@ -280,7 +322,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Preview panel */}
           <div className="col-12 col-lg-7">
             <div className="card card-modern h-100">
               <div className="card-body">
@@ -303,13 +344,16 @@ export default function Dashboard() {
                         >
                           Edit
                         </button>
-                        <button className="btn btn-outline-danger btn-modern-outline" onClick={onResetChecks} disabled={busy}>
+                        <button
+                          className="btn btn-outline-danger btn-modern-outline"
+                          onClick={onResetChecks}
+                          disabled={busy}
+                        >
                           Reset
                         </button>
                       </div>
                     </div>
 
-                    {/* Progress */}
                     <div className="mb-3">
                       <div className="d-flex justify-content-between small text-secondary mb-1">
                         <span>
@@ -324,17 +368,23 @@ export default function Dashboard() {
                         aria-valuemin="0"
                         aria-valuemax="100"
                       >
-                        <div className="progress-bar progress-bar-modern" style={{ width: `${previewStats.percent}%` }} />
+                        <div
+                          className="progress-bar progress-bar-modern"
+                          style={{ width: `${previewStats.percent}%` }}
+                        />
                       </div>
                     </div>
 
-                    {/* Filters */}
                     <div className="card card-modern mb-3">
                       <div className="card-body py-3">
                         <div className="row g-2 align-items-end">
                           <div className="col-12 col-md-5">
                             <label className="form-label mb-1">Category</label>
-                            <select className="form-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+                            <select
+                              className="form-select"
+                              value={categoryFilter}
+                              onChange={(e) => setCategoryFilter(e.target.value)}
+                            >
                               <option value="all">All categories</option>
                               {CATEGORIES.map((c) => (
                                 <option key={c} value={c}>
@@ -361,7 +411,11 @@ export default function Dashboard() {
                           </div>
 
                           <div className="col-12 col-md-2 d-grid">
-                            <button className="btn btn-outline-secondary btn-modern-outline" type="button" onClick={clearFilters}>
+                            <button
+                              className="btn btn-outline-secondary btn-modern-outline"
+                              type="button"
+                              onClick={clearFilters}
+                            >
                               Clear
                             </button>
                           </div>
@@ -370,41 +424,86 @@ export default function Dashboard() {
                         <div className="text-secondary small mt-2">
                           Showing {previewItemsFiltered.length} item(s)
                           {onlyUnpacked ? " (unpacked only)" : ""}
-                          {categoryFilter !== "all" ? ` in ${CATEGORY_LABELS[categoryFilter]}` : ""}.
+                          {categoryFilter !== "all"
+                            ? ` in ${CATEGORY_LABELS[categoryFilter]}`
+                            : ""}
+                          .
                         </div>
                       </div>
                     </div>
 
-                    {/* Checklist */}
                     <div className="fw-semibold mb-2">Checklist</div>
 
                     {previewLoading ? (
                       <div className="text-secondary">Loading items…</div>
                     ) : previewItemsFiltered.length === 0 ? (
-                      <div className="text-secondary">No items match your filters. Try clearing filters or editing the trip.</div>
+                      <div className="text-secondary">
+                        No items match your filters. Try clearing filters or editing the trip.
+                      </div>
                     ) : (
-                      <div className="list-group">
-                        {previewItemsFiltered.map((it) => (
-                          <div key={it.id} className="list-group-item d-flex justify-content-between align-items-center gap-2">
-                            <div className="form-check m-0">
-                              <input
-                                className="form-check-input"
-                                type="checkbox"
-                                checked={!!it.packed}
-                                onChange={() => togglePacked(it)}
-                                id={`dash_${it.id}`}
-                              />
-                              <label
-                                className={`form-check-label ${it.packed ? "text-decoration-line-through text-secondary" : ""}`}
-                                htmlFor={`dash_${it.id}`}
-                              >
-                                {it.name}
-                              </label>
-                            </div>
+                      <div className="list-group border-0 dashboard-checklist-group">
+                        {visibleCategories.map((cat) => {
+                          const isOpen = !!openCategories[cat];
 
-                            <span className="badge rounded-pill text-bg-light">{it.category}</span>
-                          </div>
-                        ))}
+                          return (
+                            <div
+                              key={cat}
+                              className="list-group-item px-0 py-0 overflow-hidden border-0 dashboard-category"
+                            >
+                              <button
+                                type="button"
+                                className="dashboard-category-summary w-100 border-0 bg-transparent"
+                                onClick={() => toggleCategory(cat)}
+                              >
+                                <span className="fw-semibold">{CATEGORY_LABELS[cat]}</span>
+
+                                <span className="dashboard-category-right">
+                                  <span className="badge rounded-pill text-bg-light">
+                                    {groupedPreviewItems[cat].length}
+                                  </span>
+                                  <span className="dashboard-category-icon" aria-hidden="true">
+                                    {isOpen ? "−" : "+"}
+                                  </span>
+                                </span>
+                              </button>
+
+                              <div
+                                className={`dashboard-category-content ${
+                                  isOpen ? "dashboard-category-content-open" : ""
+                                }`}
+                              >
+                                <div>
+                                  {groupedPreviewItems[cat].map((it) => (
+                                    <div
+                                      key={it.id}
+                                      className="d-flex justify-content-between align-items-center gap-2 px-3 py-2"
+                                    >
+                                      <div className="form-check m-0">
+                                        <input
+                                          className="form-check-input"
+                                          type="checkbox"
+                                          checked={!!it.packed}
+                                          onChange={() => togglePacked(it)}
+                                          id={`dash_${it.id}`}
+                                        />
+                                        <label
+                                          className={`form-check-label ${
+                                            it.packed
+                                              ? "text-decoration-line-through text-secondary"
+                                              : ""
+                                          }`}
+                                          htmlFor={`dash_${it.id}`}
+                                        >
+                                          {it.name}
+                                        </label>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </>
