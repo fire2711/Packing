@@ -1,16 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { deleteTrip, fetchItems, fetchTrips, resetTripPacked, updateItem } from "../../lib/db";
-import { CATEGORIES } from "../../lib/suggestions";
+import { deleteTrip, fetchItems, fetchTrips, resetTripPacked } from "../../lib/db";
 
-const CATEGORY_LABELS = {
-  all: "All categories",
-  electronics: "Electronics",
-  clothes: "Clothes",
-  toiletries: "Toiletries",
-  documents: "Documents",
-  misc: "Misc",
-};
+const PINNED_STORAGE_KEY = "packright:pinnedTrips";
 
 function pct(packed, total) {
   if (total <= 0) return 0;
@@ -21,112 +13,109 @@ function safeMsg(e, fallback) {
   return (e && e.message) || fallback;
 }
 
+function formatDate(value) {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString();
+}
+
+function readPinnedTrips() {
+  try {
+    const raw = localStorage.getItem(PINNED_STORAGE_KEY);
+    const parsed = JSON.parse(raw || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writePinnedTrips(ids) {
+  localStorage.setItem(PINNED_STORAGE_KEY, JSON.stringify(ids));
+}
+
 export default function Dashboard() {
   const nav = useNavigate();
+  const menuRef = useRef(null);
 
   const [trips, setTrips] = useState([]);
+  const [tripStats, setTripStats] = useState({});
   const [query, setQuery] = useState("");
+  const [sortBy, setSortBy] = useState("modified");
+  const [pinnedTripIds, setPinnedTripIds] = useState([]);
+  const [busyId, setBusyId] = useState(null);
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const [selectedTripId, setSelectedTripId] = useState(null);
-  const [previewItems, setPreviewItems] = useState([]);
-  const [previewLoading, setPreviewLoading] = useState(false);
-
-  const [onlyUnpacked, setOnlyUnpacked] = useState(false);
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [openCategories, setOpenCategories] = useState({});
-
-  const selectedTrip = useMemo(() => {
-    return trips.find((t) => t.id === selectedTripId) || null;
-  }, [trips, selectedTripId]);
-
-  const filteredTrips = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return trips;
-    return trips.filter((t) => (t.name || "").toLowerCase().includes(q));
-  }, [trips, query]);
-
-  const previewStats = useMemo(() => {
-    const total = previewItems.length;
-    const packed = previewItems.filter((i) => !!i.packed).length;
-    return { total, packed, percent: pct(packed, total) };
-  }, [previewItems]);
-
-  const previewItemsFiltered = useMemo(() => {
-    let out = previewItems;
-
-    if (onlyUnpacked) out = out.filter((i) => !i.packed);
-    if (categoryFilter !== "all") out = out.filter((i) => i.category === categoryFilter);
-
-    return [...out].sort((a, b) => {
-      if (Number(a.packed) !== Number(b.packed)) return Number(a.packed) - Number(b.packed);
-      return (a.name || "").localeCompare(b.name || "");
-    });
-  }, [previewItems, onlyUnpacked, categoryFilter]);
-
-  const groupedPreviewItems = useMemo(() => {
-    const groups = Object.fromEntries(CATEGORIES.map((c) => [c, []]));
-
-    for (const item of previewItemsFiltered) {
-      const cat = groups[item.category] ? item.category : "misc";
-      groups[cat].push(item);
-    }
-
-    return groups;
-  }, [previewItemsFiltered]);
-
-  const visibleCategories = useMemo(() => {
-    if (categoryFilter !== "all") return [categoryFilter];
-    return CATEGORIES.filter((cat) => groupedPreviewItems[cat]?.length);
-  }, [categoryFilter, groupedPreviewItems]);
 
   useEffect(() => {
-    const nextOpen = {};
-    visibleCategories.forEach((cat, idx) => {
-      nextOpen[cat] = categoryFilter !== "all" ? true : idx === 0;
-    });
-    setOpenCategories(nextOpen);
-  }, [selectedTripId, categoryFilter]);
+    setPinnedTripIds(readPinnedTrips());
+  }, []);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpenMenuId(null);
+      }
+    }
+
+    function handleEscape(e) {
+      if (e.key === "Escape") {
+        setOpenMenuId(null);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, []);
 
   async function refreshTrips() {
+    setLoading(true);
     setErr("");
 
     try {
       const data = await fetchTrips();
-      setTrips(data);
+      const safeTrips = Array.isArray(data) ? data : [];
+      setTrips(safeTrips);
 
-      if (!data.length) {
-        setSelectedTripId(null);
-        return;
-      }
+      const statsEntries = await Promise.all(
+        safeTrips.map(async (trip) => {
+          try {
+            const items = await fetchItems(trip.id);
+            const total = items.length;
+            const packed = items.filter((i) => !!i.packed).length;
 
-      if (!selectedTripId) {
-        setSelectedTripId(data[0].id);
-        return;
-      }
+            return [
+              trip.id,
+              {
+                total,
+                packed,
+                percent: pct(packed, total),
+              },
+            ];
+          } catch {
+            return [
+              trip.id,
+              {
+                total: 0,
+                packed: 0,
+                percent: 0,
+              },
+            ];
+          }
+        })
+      );
 
-      const stillExists = data.some((t) => t.id === selectedTripId);
-      if (!stillExists) setSelectedTripId(data[0].id);
+      setTripStats(Object.fromEntries(statsEntries));
     } catch (e) {
       setErr(safeMsg(e, "Failed to load trips"));
-    }
-  }
-
-  async function refreshPreview(tripId) {
-    if (!tripId) {
-      setPreviewItems([]);
-      return;
-    }
-
-    setPreviewLoading(true);
-    try {
-      const its = await fetchItems(tripId);
-      setPreviewItems(its);
-    } catch {
-      setPreviewItems([]);
     } finally {
-      setPreviewLoading(false);
+      setLoading(false);
     }
   }
 
@@ -134,36 +123,74 @@ export default function Dashboard() {
     refreshTrips();
   }, []);
 
-  useEffect(() => {
-    refreshPreview(selectedTripId);
-  }, [selectedTripId]);
+  function isPinned(tripId) {
+    return pinnedTripIds.includes(tripId);
+  }
 
-  async function togglePacked(item) {
-    const nextPacked = !item.packed;
+  function togglePin(tripId) {
+    setPinnedTripIds((prev) => {
+      const next = prev.includes(tripId)
+        ? prev.filter((id) => id !== tripId)
+        : [...prev, tripId];
 
-    setPreviewItems((prev) =>
-      prev.map((x) => (x.id === item.id ? { ...x, packed: nextPacked } : x))
-    );
+      writePinnedTrips(next);
+      return next;
+    });
+  }
 
-    try {
-      await updateItem(item.id, { packed: nextPacked });
-    } catch (e) {
-      setPreviewItems((prev) =>
-        prev.map((x) => (x.id === item.id ? { ...x, packed: item.packed } : x))
-      );
-      setErr(safeMsg(e, "Failed to update item"));
+  const filteredTrips = useMemo(() => {
+    const q = query.trim().toLowerCase();
+
+    let out = [...trips];
+
+    if (q) {
+      out = out.filter((t) => {
+        const name = (t.name || "").toLowerCase();
+        const type = (t.trip_type || "").toLowerCase();
+        return name.includes(q) || type.includes(q);
+      });
     }
-  }
 
-  function toggleCategory(cat) {
-    setOpenCategories((prev) => ({
-      ...prev,
-      [cat]: !prev[cat],
-    }));
-  }
+    out.sort((a, b) => {
+      const aPinned = isPinned(a.id) ? 1 : 0;
+      const bPinned = isPinned(b.id) ? 1 : 0;
+
+      if (aPinned !== bPinned) return bPinned - aPinned;
+
+      if (sortBy === "alpha") {
+        return (a.name || "").localeCompare(b.name || "");
+      }
+
+      if (sortBy === "days") {
+        return (b.days || 0) - (a.days || 0);
+      }
+
+      if (sortBy === "created") {
+        const aTime = new Date(a.created_at || 0).getTime();
+        const bTime = new Date(b.created_at || 0).getTime();
+        return bTime - aTime;
+      }
+
+      if (sortBy === "used") {
+        const aTime = new Date(a.last_used_at || a.updated_at || a.created_at || 0).getTime();
+        const bTime = new Date(b.last_used_at || b.updated_at || b.created_at || 0).getTime();
+        return bTime - aTime;
+      }
+
+      const aTime = new Date(a.updated_at || a.created_at || 0).getTime();
+      const bTime = new Date(b.updated_at || b.created_at || 0).getTime();
+      return bTime - aTime;
+    });
+
+    return out;
+  }, [trips, query, sortBy, pinnedTripIds]);
 
   function goNewTrip() {
     nav("/trip/new");
+  }
+
+  function goPackTrip(tripId) {
+    nav(`/trip/${tripId}`);
   }
 
   function goEditTrip(tripId) {
@@ -174,80 +201,118 @@ export default function Dashboard() {
     const ok = window.confirm("Delete this trip? This cannot be undone.");
     if (!ok) return;
 
-    setBusy(true);
+    setBusyId(tripId);
     setErr("");
+    setOpenMenuId(null);
 
     try {
       await deleteTrip(tripId);
-      await refreshTrips();
 
-      if (selectedTripId === tripId) setPreviewItems([]);
-      else await refreshPreview(selectedTripId);
+      setPinnedTripIds((prev) => {
+        const next = prev.filter((id) => id !== tripId);
+        writePinnedTrips(next);
+        return next;
+      });
+
+      await refreshTrips();
     } catch (e) {
       setErr(safeMsg(e, "Failed to delete trip"));
     } finally {
-      setBusy(false);
+      setBusyId(null);
     }
   }
 
-  async function onResetChecks() {
-    if (!selectedTripId) return;
-
-    const ok = window.confirm("Reset trip?");
+  async function onResetTrip(tripId) {
+    const ok = window.confirm("Reset all packed items for this trip?");
     if (!ok) return;
 
-    setBusy(true);
+    setBusyId(tripId);
     setErr("");
+    setOpenMenuId(null);
 
     try {
-      await resetTripPacked(selectedTripId);
-      await refreshPreview(selectedTripId);
+      await resetTripPacked(tripId);
+
+      setTripStats((prev) => {
+        const current = prev[tripId] || { total: 0, packed: 0, percent: 0 };
+        return {
+          ...prev,
+          [tripId]: {
+            ...current,
+            packed: 0,
+            percent: 0,
+          },
+        };
+      });
     } catch (e) {
       setErr(safeMsg(e, "Failed to reset checkmarks"));
     } finally {
-      setBusy(false);
+      setBusyId(null);
     }
-  }
-
-  function clearFilters() {
-    setCategoryFilter("all");
-    setOnlyUnpacked(false);
   }
 
   return (
     <div className="container py-4">
-      <div className="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
+      <div className="d-flex flex-wrap gap-3 align-items-start justify-content-between mb-4">
         <div>
           <h1 className="h3 mb-1">Dashboard</h1>
-          <div className="text-secondary">Pick a trip to preview and check items off.</div>
+          <div className="text-secondary">
+            Browse and manage your trips, then open a trip to pack.
+          </div>
         </div>
 
-        <div className="d-flex gap-2 align-items-center">
-          <input
-            className="form-control"
-            style={{ minWidth: 240 }}
-            placeholder="Search trips..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <button
-            className="btn btn-primary btn-modern"
-            style={{ whiteSpace: "nowrap" }}
-            onClick={goNewTrip}
-          >
-            New Trip
-          </button>
-        </div>
+        <button
+          className="btn btn-primary btn-modern"
+          style={{ whiteSpace: "nowrap" }}
+          onClick={goNewTrip}
+        >
+          New Trip
+        </button>
       </div>
 
       {err ? <div className="alert alert-danger">{err}</div> : null}
 
-      {filteredTrips.length === 0 ? (
+      <div className="card card-modern mb-3">
+        <div className="card-body">
+          <div className="row g-2 align-items-end">
+            <div className="col-12 col-md-7">
+              <label className="form-label mb-1">Search</label>
+              <input
+                className="form-control"
+                placeholder="Search trips..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+
+            <div className="col-12 col-md-5">
+              <label className="form-label mb-1">Sort by</label>
+              <select
+                className="form-select"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <option value="modified">Last modified</option>
+                <option value="created">Creation date</option>
+                <option value="used">Last used</option>
+                <option value="alpha">Alphabetical</option>
+                <option value="days">Trip length</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="card card-modern">
+          <div className="card-body text-secondary">Loading trips…</div>
+        </div>
+      ) : filteredTrips.length === 0 ? (
         <div className="card card-modern">
           <div className="card-body">
-            <h5 className="card-title">No trips yet</h5>
-            <p className="card-text text-secondary">
-              Create your first list and it’ll show up here.
+            <h5 className="card-title mb-2">No trips found</h5>
+            <p className="card-text text-secondary mb-3">
+              Create a trip to get started, or try a different search.
             </p>
             <button className="btn btn-primary btn-modern" onClick={goNewTrip}>
               Create a trip
@@ -255,262 +320,182 @@ export default function Dashboard() {
           </div>
         </div>
       ) : (
-        <div className="row g-3">
-          <div className="col-12 col-lg-5">
-            <div className="card card-modern">
-              <div className="card-body">
-                <div className="fw-semibold mb-2">Your trips</div>
+        <div className="row g-3" style={{ overflow: "visible" }}>
+          {filteredTrips.map((trip) => {
+            const stats = tripStats[trip.id] || { total: 0, packed: 0, percent: 0 };
+            const pinned = isPinned(trip.id);
+            const isBusy = busyId === trip.id;
+            const menuOpen = openMenuId === trip.id;
 
-                <div className="list-group list-group-modern">
-                  {filteredTrips.map((t) => {
-                    const active = t.id === selectedTripId;
-
-                    return (
-                      <button
-                        key={t.id}
-                        type="button"
-                        className={`list-group-item list-group-item-action d-flex justify-content-between align-items-start ${
-                          active ? "active" : ""
-                        }`}
-                        onClick={() => setSelectedTripId(t.id)}
-                      >
-                        <div className="me-2 text-start">
-                          <div className="fw-semibold">{t.name || "Untitled trip"}</div>
-                          <div className={`${active ? "text-white-50" : "text-secondary"} small`}>
-                            {t.trip_type} • {t.days} days
-                          </div>
-                        </div>
-
-                        <details
-                          className="kebab"
-                          onClick={(e) => e.stopPropagation()}
-                          onKeyDown={(e) => e.stopPropagation()}
+            return (
+              <div
+                key={trip.id}
+                className="col-12 col-xl-6"
+                style={{ overflow: "visible" }}
+              >
+                <div
+                  className="card card-modern h-100"
+                  style={{
+                    overflow: "visible",
+                    position: "relative",
+                    zIndex: menuOpen ? 50 : 1,
+                  }}
+                >
+                  <div className="card-body d-flex flex-column">
+                    <div className="d-flex justify-content-between align-items-start gap-3 mb-3">
+                      <div className="d-flex align-items-start gap-2">
+                        <button
+                          type="button"
+                          className={`btn btn-sm ${
+                            pinned ? "btn-warning" : "btn-outline-secondary btn-modern-outline"
+                          }`}
+                          onClick={() => togglePin(trip.id)}
+                          title={pinned ? "Unpin trip" : "Pin trip"}
+                          aria-label={pinned ? "Unpin trip" : "Pin trip"}
                         >
-                          <summary className="kebab-btn">⋮</summary>
-                          <div className="kebab-menu">
-                            <button
-                              className="kebab-item"
-                              type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                goEditTrip(t.id);
-                              }}
-                            >
-                              Edit
-                            </button>
-                            <div className="kebab-divider" />
-                            <button
-                              className="kebab-item kebab-danger"
-                              type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                onDeleteTrip(t.id);
-                              }}
-                              disabled={busy}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </details>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
+                          {pinned ? "★" : "☆"}
+                        </button>
 
-          <div className="col-12 col-lg-7">
-            <div className="card card-modern h-100">
-              <div className="card-body">
-                {!selectedTrip ? (
-                  <div className="text-secondary">Select a trip to preview it.</div>
-                ) : (
-                  <>
-                    <div className="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
-                      <div>
-                        <div className="fw-semibold fs-5">{selectedTrip.name || "Untitled trip"}</div>
-                        <div className="text-secondary">
-                          {selectedTrip.trip_type} • {selectedTrip.days} days
+                        <div>
+                          <div className="fw-semibold fs-5">
+                            {trip.name || "Untitled trip"}
+                          </div>
+                          <div className="text-secondary">
+                            {trip.trip_type || "general"} • {trip.days || 0} days
+                          </div>
                         </div>
                       </div>
 
-                      <div className="d-flex gap-2">
+                      <div
+                        className="d-flex align-items-center gap-2"
+                        ref={menuOpen ? menuRef : null}
+                      >
                         <button
-                          className="btn btn-outline-secondary btn-modern-outline"
-                          onClick={() => goEditTrip(selectedTrip.id)}
+                          className="btn btn-primary btn-modern"
+                          onClick={() => goPackTrip(trip.id)}
                         >
-                          Edit
+                          Pack
                         </button>
-                        <button
-                          className="btn btn-outline-danger btn-modern-outline"
-                          onClick={onResetChecks}
-                          disabled={busy}
-                        >
-                          Reset
-                        </button>
+
+                        <div className="position-relative">
+                          <button
+                            type="button"
+                            className="btn btn-outline-secondary btn-modern-outline"
+                            onClick={() =>
+                              setOpenMenuId((prev) => (prev === trip.id ? null : trip.id))
+                            }
+                            aria-label="More actions"
+                            title="More actions"
+                          >
+                            ⋯
+                          </button>
+
+                          {menuOpen ? (
+                            <div
+                              className="position-absolute end-0 mt-2 p-2 rounded-4"
+                              style={{
+                                minWidth: 170,
+                                background: "rgba(20, 27, 45, 0.98)",
+                                border: "1px solid rgba(255,255,255,0.08)",
+                                boxShadow: "0 10px 30px rgba(0,0,0,0.28)",
+                                zIndex: 1000,
+                              }}
+                            >
+                              <button
+                                type="button"
+                                className="btn w-100 text-start mb-1"
+                                style={{
+                                  color: "var(--text)",
+                                  background: "transparent",
+                                  border: "none",
+                                }}
+                                onClick={() => {
+                                  setOpenMenuId(null);
+                                  goEditTrip(trip.id);
+                                }}
+                                disabled={isBusy}
+                              >
+                                Edit
+                              </button>
+
+                              <button
+                                type="button"
+                                className="btn w-100 text-start mb-1"
+                                style={{
+                                  color: "var(--text)",
+                                  background: "transparent",
+                                  border: "none",
+                                }}
+                                onClick={() => onResetTrip(trip.id)}
+                                disabled={isBusy}
+                              >
+                                Reset
+                              </button>
+
+                              <div
+                                style={{
+                                  height: 1,
+                                  background: "rgba(255,255,255,0.08)",
+                                  margin: "0.35rem 0 0.5rem",
+                                }}
+                              />
+
+                              <button
+                                type="button"
+                                className="btn w-100 text-start"
+                                style={{
+                                  color: "#ff8f8f",
+                                  background: "transparent",
+                                  border: "none",
+                                }}
+                                onClick={() => onDeleteTrip(trip.id)}
+                                disabled={isBusy}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
 
                     <div className="mb-3">
                       <div className="d-flex justify-content-between small text-secondary mb-1">
                         <span>
-                          {previewStats.packed}/{previewStats.total} packed
+                          {stats.packed}/{stats.total} packed
                         </span>
-                        <span>{previewStats.percent}%</span>
+                        <span>{stats.percent}%</span>
                       </div>
+
                       <div
                         className="progress progress-modern"
                         role="progressbar"
-                        aria-valuenow={previewStats.percent}
+                        aria-valuenow={stats.percent}
                         aria-valuemin="0"
                         aria-valuemax="100"
                       >
                         <div
                           className="progress-bar progress-bar-modern"
-                          style={{ width: `${previewStats.percent}%` }}
+                          style={{ width: `${stats.percent}%` }}
                         />
                       </div>
                     </div>
 
-                    <div className="card card-modern mb-3">
-                      <div className="card-body py-3">
-                        <div className="row g-2 align-items-end">
-                          <div className="col-12 col-md-5">
-                            <label className="form-label mb-1">Category</label>
-                            <select
-                              className="form-select"
-                              value={categoryFilter}
-                              onChange={(e) => setCategoryFilter(e.target.value)}
-                            >
-                              <option value="all">All categories</option>
-                              {CATEGORIES.map((c) => (
-                                <option key={c} value={c}>
-                                  {CATEGORY_LABELS[c]}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          <div className="col-12 col-md-5">
-                            <label className="form-label mb-1">View</label>
-                            <div className="form-check">
-                              <input
-                                className="form-check-input"
-                                type="checkbox"
-                                checked={onlyUnpacked}
-                                onChange={(e) => setOnlyUnpacked(e.target.checked)}
-                                id="onlyUnpackedDash"
-                              />
-                              <label className="form-check-label" htmlFor="onlyUnpackedDash">
-                                Show only unpacked
-                              </label>
-                            </div>
-                          </div>
-
-                          <div className="col-12 col-md-2 d-grid">
-                            <button
-                              className="btn btn-outline-secondary btn-modern-outline"
-                              type="button"
-                              onClick={clearFilters}
-                            >
-                              Clear
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="text-secondary small mt-2">
-                          Showing {previewItemsFiltered.length} item(s)
-                          {onlyUnpacked ? " (unpacked only)" : ""}
-                          {categoryFilter !== "all"
-                            ? ` in ${CATEGORY_LABELS[categoryFilter]}`
-                            : ""}
-                          .
-                        </div>
+                    <div className="row g-2 text-secondary small mt-auto">
+                      <div className="col-12 col-sm-6">
+                        <span className="fw-semibold">Created:</span>{" "}
+                        {formatDate(trip.created_at)}
+                      </div>
+                      <div className="col-12 col-sm-6">
+                        <span className="fw-semibold">Updated:</span>{" "}
+                        {formatDate(trip.updated_at || trip.created_at)}
                       </div>
                     </div>
-
-                    <div className="fw-semibold mb-2">Checklist</div>
-
-                    {previewLoading ? (
-                      <div className="text-secondary">Loading items…</div>
-                    ) : previewItemsFiltered.length === 0 ? (
-                      <div className="text-secondary">
-                        No items match your filters. Try clearing filters or editing the trip.
-                      </div>
-                    ) : (
-                      <div className="list-group border-0 dashboard-checklist-group">
-                        {visibleCategories.map((cat) => {
-                          const isOpen = !!openCategories[cat];
-
-                          return (
-                            <div
-                              key={cat}
-                              className="list-group-item px-0 py-0 overflow-hidden border-0 dashboard-category"
-                            >
-                              <button
-                                type="button"
-                                className="dashboard-category-summary w-100 border-0 bg-transparent"
-                                onClick={() => toggleCategory(cat)}
-                              >
-                                <span className="fw-semibold">{CATEGORY_LABELS[cat]}</span>
-
-                                <span className="dashboard-category-right">
-                                  <span className="badge rounded-pill text-bg-light">
-                                    {groupedPreviewItems[cat].length}
-                                  </span>
-                                  <span className="dashboard-category-icon" aria-hidden="true">
-                                    {isOpen ? "−" : "+"}
-                                  </span>
-                                </span>
-                              </button>
-
-                              <div
-                                className={`dashboard-category-content ${
-                                  isOpen ? "dashboard-category-content-open" : ""
-                                }`}
-                              >
-                                <div>
-                                  {groupedPreviewItems[cat].map((it) => (
-                                    <div
-                                      key={it.id}
-                                      className="d-flex justify-content-between align-items-center gap-2 px-3 py-2"
-                                    >
-                                      <div className="form-check m-0">
-                                        <input
-                                          className="form-check-input"
-                                          type="checkbox"
-                                          checked={!!it.packed}
-                                          onChange={() => togglePacked(it)}
-                                          id={`dash_${it.id}`}
-                                        />
-                                        <label
-                                          className={`form-check-label ${
-                                            it.packed
-                                              ? "text-decoration-line-through text-secondary"
-                                              : ""
-                                          }`}
-                                          htmlFor={`dash_${it.id}`}
-                                        >
-                                          {it.name}
-                                        </label>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </>
-                )}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            );
+          })}
         </div>
       )}
     </div>

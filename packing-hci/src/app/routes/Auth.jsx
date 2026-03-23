@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../AuthProvider";
@@ -8,6 +8,7 @@ export default function Auth() {
   const { user } = useAuth();
 
   const [mode, setMode] = useState("login"); // "login" | "signup"
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -15,10 +16,19 @@ export default function Auth() {
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
 
-  // If already logged in, bounce to dashboard
-  if (user) {
-    nav("/", { replace: true });
-  }
+  useEffect(() => {
+    if (user) {
+      nav("/", { replace: true });
+    }
+  }, [user, nav]);
+
+  useEffect(() => {
+    setName("");
+    setEmail("");
+    setPassword("");
+    setErr("");
+    setMsg("");
+  }, [mode]);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -28,10 +38,19 @@ export default function Auth() {
 
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              name: name.trim(),
+            },
+          },
+        });
+
         if (error) throw error;
 
-        setMsg("Account created. Check your email to confirm (if confirmations are enabled).");
+        setMsg("Account created. Check your email to confirm if email confirmations are enabled.");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -45,67 +64,100 @@ export default function Auth() {
     }
   }
 
+  const isLogin = mode === "login";
+
   return (
-    <div className="container py-5" style={{ maxWidth: 520 }}>
-      <div className="card">
-        <div className="card-body">
-          <h1 className="h4 mb-1">PackRight</h1>
-          <p className="text-secondary mb-4">
-            {mode === "login" ? "Log in to your packing lists" : "Create an account"}
-          </p>
-
-          <div className="btn-group w-100 mb-3">
-            <button
-              type="button"
-              className={`btn ${mode === "login" ? "btn-primary" : "btn-outline-primary"}`}
-              onClick={() => setMode("login")}
-            >
-              Log in
-            </button>
-            <button
-              type="button"
-              className={`btn ${mode === "signup" ? "btn-primary" : "btn-outline-primary"}`}
-              onClick={() => setMode("signup")}
-            >
-              Sign up
-            </button>
-          </div>
-
-          {err && <div className="alert alert-danger">{err}</div>}
-          {msg && <div className="alert alert-success">{msg}</div>}
-
-          <form onSubmit={onSubmit} className="d-flex flex-column gap-3">
-            <div>
-              <label className="form-label">Email</label>
-              <input
-                className="form-control"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-                required
-              />
+    <div className="auth-page">
+      <div className="container py-5">
+        <div className="auth-card mx-auto">
+          <div className="auth-card-body">
+            <div className="auth-header">
+              <h1 className="auth-title">{isLogin ? "Login" : "Register"}</h1>
+              <p className="auth-subtitle">
+                {isLogin
+                  ? "Log in to continue managing your packing lists."
+                  : "Create an account to save trips and reuse past packing lists."}
+              </p>
             </div>
 
-            <div>
-              <label className="form-label">Password</label>
-              <input
-                className="form-control"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
-                required
-              />
-              <div className="form-text">
-                Use at least 6 characters.
+            {err && <div className="alert alert-danger">{err}</div>}
+            {msg && <div className="alert alert-success">{msg}</div>}
+
+            <form key={mode} onSubmit={onSubmit} className="auth-form">
+              {!isLogin && (
+                <div className="auth-field">
+                  <label className="auth-label">Name</label>
+                  <input
+                    className="auth-input"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    autoComplete="name"
+                    placeholder="Enter your name"
+                    required
+                  />
+                </div>
+              )}
+
+              <div className="auth-field">
+                <label className="auth-label">Email</label>
+                <input
+                  className="auth-input"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  placeholder="Enter your email"
+                  required
+                />
               </div>
-            </div>
 
-            <button className="btn btn-primary" disabled={busy}>
-              {busy ? "Working..." : mode === "login" ? "Log in" : "Create account"}
-            </button>
-          </form>
+              <div className="auth-field">
+                <label className="auth-label">Password</label>
+                <input
+                  className="auth-input"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete={isLogin ? "current-password" : "new-password"}
+                  placeholder={isLogin ? "Enter your password" : "Create a password"}
+                  required
+                />
+              </div>
+
+              <button className="auth-submit-btn" disabled={busy}>
+                {busy ? "Working..." : isLogin ? "Login" : "Register"}
+              </button>
+            </form>
+
+            <div className="auth-switch-text">
+              {isLogin ? (
+                <>
+                  No account?{" "}
+                  <button
+                    type="button"
+                    className="auth-switch-link"
+                    onClick={() => setMode("signup")}
+                    disabled={busy}
+                  >
+                    Register here
+                  </button>
+                </>
+              ) : (
+                <>
+                  Already have an account?{" "}
+                  <button
+                    type="button"
+                    className="auth-switch-link"
+                    onClick={() => setMode("login")}
+                    disabled={busy}
+                  >
+                    Login here
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

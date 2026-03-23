@@ -1,11 +1,4 @@
-export const CATEGORY_LABELS = {
-  all: "All categories",
-  electronics: "Electronics",
-  clothes: "Clothes",
-  toiletries: "Toiletries",
-  documents: "Documents",
-  misc: "Misc",
-};
+// src/app/routes/tripConstants.js
 
 export const TRIP_TYPES = [
   { id: "general", label: "General" },

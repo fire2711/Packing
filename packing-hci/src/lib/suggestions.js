@@ -1,7 +1,5 @@
 // src/lib/suggestions.js
 
-export const CATEGORIES = ["electronics", "clothes", "toiletries", "documents", "misc"];
-
 const BASE_ITEMS_BY_TYPE = {
   general: ["Phone charger", "Wallet", "Keys", "Phone"],
   leisure: ["Phone charger", "Wallet", "Keys", "Sunglasses", "Phone"],
@@ -34,8 +32,10 @@ function uniqStrings(list) {
   for (const raw of list) {
     const s = String(raw || "").trim();
     if (!s) continue;
+
     const k = s.toLowerCase();
     if (seen.has(k)) continue;
+
     seen.add(k);
     out.push(s);
   }
@@ -45,36 +45,6 @@ function uniqStrings(list) {
 
 export function normalizeSuggestionName(name) {
   return String(name || "").trim().toLowerCase();
-}
-
-export function guessCategory(name) {
-  const n = String(name || "").toLowerCase();
-
-  if (
-    /(charger|laptop|phone|adapter|camera|airpods|headphones|power bank|portable charger|battery|tablet|watch charger)/.test(n)
-  ) {
-    return "electronics";
-  }
-
-  if (
-    /(passport|id|ticket|boarding pass|visa|insurance|reservation|itinerary|badge|travel docs|entry docs)/.test(n)
-  ) {
-    return "documents";
-  }
-
-  if (
-    /(tooth|shampoo|soap|deodorant|razor|lotion|sunscreen|conditioner|face wash|contacts|toiletry|detergent|bug spray)/.test(n)
-  ) {
-    return "toiletries";
-  }
-
-  if (
-    /(shirt|pants|shorts|socks|underwear|jacket|hoodie|shoe|shoes|swimsuit|dress|belt|beanie|gloves|hat|outfit|thermal|layers|sleepwear|flip flops)/.test(n)
-  ) {
-    return "clothes";
-  }
-
-  return "misc";
 }
 
 function buildQuantityItems(days) {
@@ -132,7 +102,6 @@ export function buildSuggestions({ trip_type, days, tags = [], frequentNames = [
 
   return unique.map((name) => ({
     name,
-    category: guessCategory(name),
     learned: learnedSet.has(normalizeSuggestionName(name)),
   }));
 }

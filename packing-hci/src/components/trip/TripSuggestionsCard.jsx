@@ -1,5 +1,4 @@
 import React from "react";
-import { CATEGORY_LABELS } from "../../app/routes/tripConstants";
 
 export default function TripSuggestionsCard({
   suggestions,
@@ -35,15 +34,16 @@ export default function TripSuggestionsCard({
           <div className="d-flex flex-wrap gap-2">
             {suggestions.map((s) => (
               <button
-                key={`${s.category}_${s.name}`}
+                key={s.name}
                 type="button"
                 className="btn btn-outline-primary btn-sm"
                 onClick={() => onAddSuggestion(s)}
                 disabled={busy || generating}
               >
                 + {s.name}
-                {s.learned ? <span className="ms-1 badge text-bg-light">Past trip</span> : null}
-                <span className="text-secondary ms-1">({CATEGORY_LABELS[s.category]})</span>
+                {s.learned ? (
+                  <span className="ms-1 badge text-bg-light">Past trip</span>
+                ) : null}
               </button>
             ))}
           </div>

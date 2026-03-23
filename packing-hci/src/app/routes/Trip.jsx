@@ -1,3 +1,5 @@
+// src/app/routes/Trip.jsx
+
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -11,14 +13,11 @@ import {
   updateItem,
   updateTrip,
 } from "../../lib/db";
-import { buildSuggestions, CATEGORIES } from "../../lib/suggestions";
-import { CATEGORY_LABELS } from "./tripConstants";
+import { buildSuggestions } from "../../lib/suggestions";
 import { normalizeName, pct, safeMsg, tmpId } from "./tripUtils";
-import CategoryList from "../../components/trip/CategoryList";
 import TripHeader from "../../components/trip/TripHeader";
 import TripProgressCard from "../../components/trip/TripProgressCard";
 import TripDetailsCard from "../../components/trip/TripDetailsCard";
-import TripAddItemCard from "../../components/trip/TripAddItemCard";
 import TripSuggestionsCard from "../../components/trip/TripSuggestionsCard";
 
 export default function Trip({ mode = "view" }) {
@@ -42,8 +41,9 @@ export default function Trip({ mode = "view" }) {
     days: 3,
     tags: [],
   });
+
   const [draftItems, setDraftItems] = useState([]);
-  const [newItem, setNewItem] = useState({ name: "", category: "misc" });
+  const [newItemName, setNewItemName] = useState("");
 
   const activeTrip = isDraft ? draftTrip : trip;
   const activeItems = isDraft ? draftItems : items;
@@ -66,6 +66,7 @@ export default function Trip({ mode = "view" }) {
 
   async function refreshItems() {
     if (isDraft) return;
+
     try {
       const its = await fetchItems(tripId);
       setItems(its);
@@ -129,22 +130,11 @@ export default function Trip({ mode = "view" }) {
     return { total, packed, percent: pct(packed, total) };
   }, [activeItems]);
 
-  const itemsByCategory = useMemo(() => {
-    const map = Object.fromEntries(CATEGORIES.map((c) => [c, []]));
-
-    for (const it of activeItems) {
-      const cat = map[it.category] ? it.category : "misc";
-      map[cat].push(it);
-    }
-
-    for (const cat of CATEGORIES) {
-      map[cat] = [...map[cat]].sort((a, b) => {
-        if (Number(a.packed) !== Number(b.packed)) return Number(a.packed) - Number(b.packed);
-        return (a.name || "").localeCompare(b.name || "");
-      });
-    }
-
-    return map;
+  const sortedItems = useMemo(() => {
+    return [...activeItems].sort((a, b) => {
+      if (Number(a.packed) !== Number(b.packed)) return Number(a.packed) - Number(b.packed);
+      return (a.name || "").localeCompare(b.name || "");
+    });
   }, [activeItems]);
 
   const suggestions = useMemo(() => {
@@ -206,7 +196,7 @@ export default function Trip({ mode = "view" }) {
   async function onAddItem(e) {
     e.preventDefault();
 
-    const name = newItem.name.trim();
+    const name = newItemName.trim();
     if (!name) return;
 
     setErr("");
@@ -217,16 +207,16 @@ export default function Trip({ mode = "view" }) {
 
       setDraftItems((prev) => [
         ...prev,
-        { _tmpId: tmpId(), name, category: newItem.category, packed: false },
+        { _tmpId: tmpId(), name, packed: false },
       ]);
-      setNewItem((prev) => ({ ...prev, name: "" }));
+      setNewItemName("");
       return;
     }
 
     setBusy(true);
     try {
-      await addItem(tripId, { name, category: newItem.category, packed: false });
-      setNewItem((prev) => ({ ...prev, name: "" }));
+      await addItem(tripId, { name, packed: false });
+      setNewItemName("");
       await refreshItems();
     } catch (e) {
       setErr(safeMsg(e, "Failed to add item"));
@@ -244,14 +234,14 @@ export default function Trip({ mode = "view" }) {
 
       setDraftItems((prev) => [
         ...prev,
-        { _tmpId: tmpId(), name: s.name, category: s.category, packed: false },
+        { _tmpId: tmpId(), name: s.name, packed: false },
       ]);
       return;
     }
 
     setBusy(true);
     try {
-      await addItem(tripId, { name: s.name, category: s.category, packed: false });
+      await addItem(tripId, { name: s.name, packed: false });
       await refreshItems();
     } catch (e) {
       setErr(safeMsg(e, "Failed to add suggestion"));
@@ -274,7 +264,6 @@ export default function Trip({ mode = "view" }) {
           .map((s) => ({
             _tmpId: tmpId(),
             name: s.name,
-            category: s.category,
             packed: false,
           }));
 
@@ -288,7 +277,6 @@ export default function Trip({ mode = "view" }) {
       for (const s of toAdd) {
         await addItem(tripId, {
           name: s.name,
-          category: s.category,
           packed: false,
         });
       }
@@ -317,20 +305,6 @@ export default function Trip({ mode = "view" }) {
     updateItem(item.id, { name })
       .then(() => setItems((prev) => prev.map((x) => (x.id === item.id ? { ...x, name } : x))))
       .catch((e) => setErr(safeMsg(e, "Failed to rename item")));
-  }
-
-  function onChangeCategory(item, category) {
-    if (isDraft) {
-      setDraftItems((prev) =>
-        prev.map((x) => (x._tmpId === item._tmpId ? { ...x, category } : x))
-      );
-      return;
-    }
-
-    setErr("");
-    updateItem(item.id, { category })
-      .then(() => setItems((prev) => prev.map((x) => (x.id === item.id ? { ...x, category } : x))))
-      .catch((e) => setErr(safeMsg(e, "Failed to update category")));
   }
 
   function onDeleteItem(item) {
@@ -413,7 +387,7 @@ export default function Trip({ mode = "view" }) {
       });
 
       for (const it of draftItems) {
-        await addItem(t.id, { name: it.name, category: it.category, packed: !!it.packed });
+        await addItem(t.id, { name: it.name, packed: !!it.packed });
       }
 
       nav("/");
@@ -467,12 +441,24 @@ export default function Trip({ mode = "view" }) {
             toggleTag={toggleTag}
           />
 
-          <TripAddItemCard
-            newItem={newItem}
-            setNewItem={setNewItem}
-            onAddItem={onAddItem}
-            busy={busy}
-          />
+          <div className="card card-modern mb-3">
+            <div className="card-body">
+              <div className="fw-semibold mb-2">Add item</div>
+
+              <form onSubmit={onAddItem} className="d-flex flex-wrap gap-2">
+                <input
+                  className="form-control"
+                  style={{ flex: "1 1 260px" }}
+                  placeholder="Add an item..."
+                  value={newItemName}
+                  onChange={(e) => setNewItemName(e.target.value)}
+                />
+                <button className="btn btn-primary btn-modern" disabled={busy}>
+                  Add
+                </button>
+              </form>
+            </div>
+          </div>
 
           <TripSuggestionsCard
             suggestions={suggestions}
@@ -484,52 +470,69 @@ export default function Trip({ mode = "view" }) {
         </>
       ) : null}
 
-      <div className="d-lg-none">
-        {CATEGORIES.map((cat, idx) => (
-          <details key={cat} open={idx === 0} className="card card-modern mb-2">
-            <summary
-              className="d-flex justify-content-between align-items-center px-3 py-3"
-              style={{ cursor: "pointer" }}
-            >
-              <span className="fw-semibold">{CATEGORY_LABELS[cat]}</span>
-              <span className="badge text-bg-secondary">{itemsByCategory[cat].length}</span>
-            </summary>
-            <div className="px-3 pb-3">
-              <CategoryList
-                items={itemsByCategory[cat]}
-                isEditLike={isEditLike}
-                onTogglePacked={onTogglePacked}
-                onChangeCategory={onChangeCategory}
-                onRenameItem={onRenameItem}
-                onDeleteItem={onDeleteItem}
-              />
-            </div>
-          </details>
-        ))}
-      </div>
-
-      <div className="row g-3 d-none d-lg-flex">
-        {CATEGORIES.map((cat) => (
-          <div className="col-12 col-lg-6" key={cat}>
-            <div className="card card-modern h-100">
-              <div className="card-body">
-                <div className="d-flex justify-content-between align-items-center mb-2">
-                  <div className="fw-semibold">{CATEGORY_LABELS[cat]}</div>
-                  <span className="badge text-bg-secondary">{itemsByCategory[cat].length}</span>
-                </div>
-
-                <CategoryList
-                  items={itemsByCategory[cat]}
-                  isEditLike={isEditLike}
-                  onTogglePacked={onTogglePacked}
-                  onChangeCategory={onChangeCategory}
-                  onRenameItem={onRenameItem}
-                  onDeleteItem={onDeleteItem}
-                />
-              </div>
-            </div>
+      <div className="card card-modern">
+        <div className="card-body">
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <div className="fw-semibold fs-5">Checklist</div>
+            <span className="badge text-bg-secondary">{sortedItems.length}</span>
           </div>
-        ))}
+
+          {sortedItems.length === 0 ? (
+            <div className="text-secondary">No items yet.</div>
+          ) : (
+            <div className="d-flex flex-column gap-2">
+              {sortedItems.map((item) => {
+                const key = item.id ?? item._tmpId;
+
+                return (
+                  <div
+                    key={key}
+                    className="d-flex flex-wrap justify-content-between align-items-center gap-2 p-3 rounded"
+                    style={{
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.06)",
+                    }}
+                  >
+                    <label className="d-flex align-items-center gap-2 flex-grow-1 m-0">
+                      <input
+                        type="checkbox"
+                        checked={!!item.packed}
+                        onChange={() => onTogglePacked(item)}
+                      />
+                      <span
+                        style={{
+                          textDecoration: item.packed ? "line-through" : "none",
+                          opacity: item.packed ? 0.65 : 1,
+                        }}
+                      >
+                        {item.name}
+                      </span>
+                    </label>
+
+                    {isEditLike ? (
+                      <div className="d-flex gap-2">
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-secondary btn-modern-outline"
+                          onClick={() => onRenameItem(item)}
+                        >
+                          Rename
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-danger btn-modern-outline"
+                          onClick={() => onDeleteItem(item)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
