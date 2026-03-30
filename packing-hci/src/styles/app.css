@@ -15,12 +15,18 @@
   --radius-2: 16px;
 }
 
+.lalezar-regular {
+  font-family: "Lalezar";
+}
+
 body {
   background:
     radial-gradient(900px 500px at 15% 0%, rgba(91, 140, 255, 0.25), transparent),
     radial-gradient(700px 450px at 90% 10%, rgba(34, 197, 94, 0.16), transparent),
     var(--bg);
   color: var(--text);
+
+  font-family: Sarabun;
 }
 
 .card,
@@ -278,6 +284,11 @@ select option {
 .navbar a,
 .navbar .btn {
   color: rgba(232, 238, 252, 0.95) !important;
+}
+
+.navbar-brand {
+  font-size: 30px;
+  margin-bottom: -6px;
 }
 
 .navbar .btn.btn-primary {

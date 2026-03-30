@@ -21,7 +21,7 @@ export default function Navbar() {
   return (
     <nav className="navbar navbar-expand-lg border-bottom">
       <div className="container">
-        <Link className="navbar-brand fw-bold" to="/">
+        <Link className="navbar-brand lalezar-regular" to="/">
           PackRight
         </Link>
 
