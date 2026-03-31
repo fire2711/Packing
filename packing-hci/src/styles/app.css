@@ -1,15 +1,15 @@
 :root {
   --bg: #0b1220;
-  --card: rgba(255, 255, 255, 0.06);
-  --border: rgba(255, 255, 255, 0.10);
-  --text: #e8eefc;
+  --card: rgba(255, 255, 255, 0.10);
+  --border: rgba(255, 255, 255, 0.50);
+  --text: white;
   --muted: rgba(232, 238, 252, 0.72);
   --primary: #5b8cff;
   --accent: #22c55e;
 
   --surface-1: rgba(255, 255, 255, 0.03);
   --surface-2: rgba(255, 255, 255, 0.05);
-  --surface-3: rgba(255, 255, 255, 0.08);
+  --surface-3: rgba(255, 255, 255, 0.15);
   --shadow-1: 0 14px 40px rgba(0, 0, 0, 0.45);
   --radius-1: 12px;
   --radius-2: 16px;
@@ -45,7 +45,7 @@ body {
 .form-label,
 label,
 .form-check-label {
-  color: rgba(232, 238, 252, 0.92) !important;
+  color: white !important;
 }
 
 .form-control,
@@ -69,6 +69,11 @@ label,
 select option {
   background: #0f172a;
   color: var(--text);
+}
+
+.tag-icon {
+  width: 1em;
+  text-align: left;
 }
 
 .card-modern {
@@ -234,10 +239,6 @@ select option {
   backdrop-filter: blur(10px);
 }
 
-.card * {
-  color: rgba(232, 238, 252, 0.92);
-}
-
 .card .form-control,
 .card .form-select {
   background: rgba(255, 255, 255, 0.08) !important;
@@ -293,6 +294,17 @@ select option {
 
 .navbar .btn.btn-primary {
   color: white !important;
+}
+
+.tag-checked {
+  border-radius: 999px !important;
+  color: black !important;
+  background-color: white !important;
+  border-color: white;
+}
+
+.tag-checked:hover {
+  border-color: white;
 }
 
 .dashboard-checklist-group {

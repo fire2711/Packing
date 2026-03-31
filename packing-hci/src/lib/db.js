@@ -30,7 +30,7 @@ export async function createTrip({ name, trip_type, days }) {
       user_id: user.id,
       name: name ?? "",
       trip_type: trip_type ?? "general",
-      days: days ?? 3,
+      days: days ?? 1,
     })
     .select("*")
     .single();
@@ -90,6 +90,7 @@ export async function addItem(tripId, item) {
       trip_id: tripId,
       name: item.name,
       category: item.category,
+      size: item.size,
       packed: !!item.packed,
     })
     .select("*")

@@ -19,6 +19,7 @@ import TripHeader from "../../components/trip/TripHeader";
 import TripProgressCard from "../../components/trip/TripProgressCard";
 import TripDetailsCard from "../../components/trip/TripDetailsCard";
 import TripSuggestionsCard from "../../components/trip/TripSuggestionsCard";
+import Item from "../../components/Item";
 
 export default function Trip({ mode = "view" }) {
   const { tripId } = useParams();
@@ -38,12 +39,11 @@ export default function Trip({ mode = "view" }) {
   const [draftTrip, setDraftTrip] = useState({
     name: "New Trip",
     trip_type: "general",
-    days: 3,
+    days: 1,
     tags: [],
   });
 
   const [draftItems, setDraftItems] = useState([]);
-  const [newItemName, setNewItemName] = useState("");
 
   const activeTrip = isDraft ? draftTrip : trip;
   const activeItems = isDraft ? draftItems : items;
@@ -196,27 +196,19 @@ export default function Trip({ mode = "view" }) {
   async function onAddItem(e) {
     e.preventDefault();
 
-    const name = newItemName.trim();
-    if (!name) return;
-
     setErr("");
 
     if (isDraft) {
-      const exists = draftItems.some((x) => normalizeName(x.name) === normalizeName(name));
-      if (exists) return;
-
       setDraftItems((prev) => [
         ...prev,
-        { _tmpId: tmpId(), name, packed: false },
+        { _tmpId: tmpId(), name: "", category: "General", size: "medium", packed: false },
       ]);
-      setNewItemName("");
       return;
     }
 
     setBusy(true);
     try {
-      await addItem(tripId, { name, packed: false });
-      setNewItemName("");
+      await addItem(tripId, { name: "", category: "General", size: "medium", packed: false });
       await refreshItems();
     } catch (e) {
       setErr(safeMsg(e, "Failed to add item"));
@@ -387,7 +379,7 @@ export default function Trip({ mode = "view" }) {
       });
 
       for (const it of draftItems) {
-        await addItem(t.id, { name: it.name, packed: !!it.packed });
+        await addItem(t.id, { name: it.name, size: it.size, category: it.category, packed: !!it.packed });
       }
 
       nav("/");
@@ -425,13 +417,13 @@ export default function Trip({ mode = "view" }) {
 
       {err ? <div className="alert alert-danger">{err}</div> : null}
 
-      <TripProgressCard
+      {!isEditLike && <TripProgressCard
         stats={stats}
         busy={busy}
         isEditLike={isEditLike}
         onResetChecks={onResetChecks}
         onClearAllItems={onClearAllItems}
-      />
+      />}
 
       {isEditLike ? (
         <>
@@ -441,7 +433,7 @@ export default function Trip({ mode = "view" }) {
             toggleTag={toggleTag}
           />
 
-          <div className="card card-modern mb-3">
+          {/*<div className="card card-modern mb-3">
             <div className="card-body">
               <div className="fw-semibold mb-2">Add item</div>
 
@@ -458,15 +450,15 @@ export default function Trip({ mode = "view" }) {
                 </button>
               </form>
             </div>
-          </div>
+          </div>*/}
 
-          <TripSuggestionsCard
+          {/*<TripSuggestionsCard
             suggestions={suggestions}
             busy={busy}
             generating={generating}
             onGenerateStarterList={onGenerateStarterList}
             onAddSuggestion={onAddSuggestion}
-          />
+          />*/}
         </>
       ) : null}
 
@@ -477,7 +469,19 @@ export default function Trip({ mode = "view" }) {
             <span className="badge text-bg-secondary">{sortedItems.length}</span>
           </div>
 
-          {sortedItems.length === 0 ? (
+          <div className="col checklist">
+            {activeItems.map(item => <Item key={`checklist-item-${isDraft ? item._tmpId : item.id}`} item={item} setDraftItems={setDraftItems} />)}
+            {isEditLike && <div className="row gx-3">
+              <div className="col-3 pe-1">
+                <button onClick={onAddItem} className="col-12 btn btn-outline-primary btn-sm">Add Item</button>
+              </div>
+              <div className="col-3 ps-1 pe-0">
+                <button className="col-12 btn btn-outline-primary btn-sm">Add Container</button>
+              </div>
+            </div>}
+          </div>
+
+          {/*sortedItems.length === 0 ? (
             <div className="text-secondary">No items yet.</div>
           ) : (
             <div className="d-flex flex-column gap-2">
@@ -531,7 +535,7 @@ export default function Trip({ mode = "view" }) {
                 );
               })}
             </div>
-          )}
+          )*/}
         </div>
       </div>
     </div>
