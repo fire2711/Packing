@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { deleteTrip, fetchItems, fetchTrips, resetTripPacked } from "../../lib/db";
+import { deleteTrip, fetchListItems, fetchTrips, resetTripPacked } from "../../lib/db";
 
 const PINNED_STORAGE_KEY = "packright:pinnedTrips";
 
@@ -86,7 +86,7 @@ export default function Dashboard() {
       const statsEntries = await Promise.all(
         safeTrips.map(async (trip) => {
           try {
-            const items = await fetchItems(trip.id);
+            const items = await fetchListItems(trip.id);
             const total = items.length;
             const packed = items.filter((i) => !!i.packed).length;
 

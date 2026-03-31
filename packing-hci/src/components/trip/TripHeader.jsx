@@ -12,6 +12,7 @@ export default function TripHeader({
   nav,
   onCancelDraft,
   onConfirmDraft,
+  onConfirmEdit,
 }) {
   return (
     <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-1">
@@ -63,9 +64,10 @@ export default function TripHeader({
             {isEdit ? (
               <button
                 className="btn btn-primary btn-modern"
-                onClick={() => nav(`/trip/${tripId}`)}
+                onClick={onConfirmEdit}
+                disabled={busy}
               >
-                Confirm
+                {busy ? "Saving…" : "Confirm"}
               </button>
             ) : (
               <button

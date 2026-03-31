@@ -68,15 +68,21 @@ export async function fetchTrip(tripId) {
   return data;
 }
 
-export async function fetchItems(tripId) {
+export async function fetchListItems(tripId) {
   const { data, error } = await supabase
-    .from("items")
-    .select("*")
-    .eq("trip_id", tripId)
-    .order("created_at", { ascending: false });
+    .from("list_items")
+    .select("*, container:container_id(*), item:item_id(*)")
+    .eq("trip_id", tripId);
 
   if (error) throw error;
-  return data;
+  return data.map(listItem => listItem.item ? {
+    ...listItem.item,
+    listItemId: listItem.id
+  } : {
+    ...listItem.container,
+    category: "Container",
+    listItemId: listItem.id
+  });
 }
 
 export async function addItem(tripId, item) {
@@ -92,6 +98,46 @@ export async function addItem(tripId, item) {
       category: item.category,
       size: item.size,
       packed: !!item.packed,
+      container_id: item.container_id,
+    })
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function addContainer(tripId, item) {
+  const user = await getUser();
+  if (!user) throw new Error("Not logged in");
+
+  const { data, error } = await supabase
+    .from("containers")
+    .insert({
+      user_id: user.id,
+      trip_id: tripId,
+      name: item.name,
+      size: item.size,
+      packed: !!item.packed,
+    })
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function addListItem(tripId, listItemId, isContainer) {
+  const user = await getUser();
+  if (!user) throw new Error("Not logged in");
+
+  const { data, error } = await supabase
+    .from("list_items")
+    .insert({
+      user_id: user.id,
+      trip_id: tripId,
+      container_id: isContainer ? listItemId : null,
+      item_id: !isContainer ? listItemId : null
     })
     .select("*")
     .single();
@@ -112,8 +158,30 @@ export async function updateItem(itemId, patch) {
   return data;
 }
 
+export async function updateContainer(itemId, patch) {
+  const { data, error } = await supabase
+    .from("containers")
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq("id", itemId)
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 export async function deleteItem(itemId) {
   const { error } = await supabase.from("items").delete().eq("id", itemId);
+  if (error) throw error;
+}
+
+export async function deleteContainer(itemId) {
+  const { error } = await supabase.from("containers").delete().eq("id", itemId);
+  if (error) throw error;
+}
+
+export async function deleteListItem(itemId) {
+  const { error } = await supabase.from("list_items").delete().eq("id", itemId);
   if (error) throw error;
 }
 

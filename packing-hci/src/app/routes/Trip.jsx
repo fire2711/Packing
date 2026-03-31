@@ -6,12 +6,17 @@ import {
   addItem,
   createTrip,
   deleteItem,
-  fetchItems,
+  fetchListItems,
   fetchTrip,
   fetchTrips,
   resetTripPacked,
   updateItem,
   updateTrip,
+  addListItem,
+  deleteListItem,
+  addContainer,
+  deleteContainer,
+  updateContainer,
 } from "../../lib/db";
 import { buildSuggestions } from "../../lib/suggestions";
 import { normalizeName, pct, safeMsg, tmpId } from "./tripUtils";
@@ -44,6 +49,7 @@ export default function Trip({ mode = "view" }) {
   });
 
   const [draftItems, setDraftItems] = useState([]);
+  const [deletedItems, setDeletedItems] = useState([]);
 
   const activeTrip = isDraft ? draftTrip : trip;
   const activeItems = isDraft ? draftItems : items;
@@ -56,7 +62,7 @@ export default function Trip({ mode = "view" }) {
       const t = await fetchTrip(tripId);
       if (!t.tags) t.tags = [];
 
-      const its = await fetchItems(tripId);
+      const its = await fetchListItems(tripId);
       setTrip(t);
       setItems(its);
     } catch (e) {
@@ -68,7 +74,7 @@ export default function Trip({ mode = "view" }) {
     if (isDraft) return;
 
     try {
-      const its = await fetchItems(tripId);
+      const its = await fetchListItems(tripId);
       setItems(its);
     } catch {
       // ignore
@@ -93,7 +99,7 @@ export default function Trip({ mode = "view" }) {
       const counts = {};
 
       for (const t of similarTrips) {
-        const tripItems = await fetchItems(t.id);
+        const tripItems = await fetchListItems(t.id);
 
         const uniqueTripNames = new Set(
           tripItems.map((item) => normalizeName(item.name)).filter(Boolean)
@@ -193,28 +199,22 @@ export default function Trip({ mode = "view" }) {
     }
   }
 
-  async function onAddItem(e) {
-    e.preventDefault();
-
-    setErr("");
-
+  async function onAddItem(isContainer, container_id) {
     if (isDraft) {
       setDraftItems((prev) => [
         ...prev,
-        { _tmpId: tmpId(), name: "", category: "General", size: "medium", packed: false },
+        { draft: true, _tmpId: tmpId(), name: "", category: isContainer ? "Container" : "General", size: "medium", packed: false, container_id: container_id, },
       ]);
-      return;
+    } else {
+      setItems((prev) => [
+        ...prev,
+        { draft: true, id: tmpId(), name: "", category: isContainer ? "Container" : "General", size: "medium", packed: false, container_id: container_id, },
+      ]);
     }
+  }
 
-    setBusy(true);
-    try {
-      await addItem(tripId, { name: "", category: "General", size: "medium", packed: false });
-      await refreshItems();
-    } catch (e) {
-      setErr(safeMsg(e, "Failed to add item"));
-    } finally {
-      setBusy(false);
-    }
+  function addDeletedItem(item_id) {
+    setDeletedItems(prev => [...prev, item_id]);
   }
 
   async function onAddSuggestion(s) {
@@ -281,39 +281,6 @@ export default function Trip({ mode = "view" }) {
     }
   }
 
-  function onRenameItem(item) {
-    const next = window.prompt("Rename item:", item.name);
-    if (next == null) return;
-
-    const name = next.trim();
-    if (!name) return;
-
-    if (isDraft) {
-      setDraftItems((prev) => prev.map((x) => (x._tmpId === item._tmpId ? { ...x, name } : x)));
-      return;
-    }
-
-    setErr("");
-    updateItem(item.id, { name })
-      .then(() => setItems((prev) => prev.map((x) => (x.id === item.id ? { ...x, name } : x))))
-      .catch((e) => setErr(safeMsg(e, "Failed to rename item")));
-  }
-
-  function onDeleteItem(item) {
-    const ok = window.confirm("Delete this item?");
-    if (!ok) return;
-
-    if (isDraft) {
-      setDraftItems((prev) => prev.filter((x) => x._tmpId !== item._tmpId));
-      return;
-    }
-
-    setErr("");
-    deleteItem(item.id)
-      .then(() => setItems((prev) => prev.filter((x) => x.id !== item.id)))
-      .catch((e) => setErr(safeMsg(e, "Failed to delete item")));
-  }
-
   async function onResetChecks() {
     const ok = window.confirm("Reset checked items for this trip? (Items will stay.)");
     if (!ok) return;
@@ -378,13 +345,75 @@ export default function Trip({ mode = "view" }) {
         tags: Array.isArray(draftTrip.tags) ? draftTrip.tags : [],
       });
 
-      for (const it of draftItems) {
-        await addItem(t.id, { name: it.name, size: it.size, category: it.category, packed: !!it.packed });
+      const trueIds = {}
+
+      for (const it of draftItems.filter(item => item.category == "Container")) {
+        const data = await addContainer(t.id, { name: it.name, size: it.size, packed: !!it.packed });
+        trueIds[it._tmpId] = data.id;
+        it.id = data.id;
+        await addListItem(t.id, data.id, true);
       }
 
-      nav("/");
+      for (const it of draftItems.filter(item => item.category != "Container")) {
+        if (it.container_id) it.container_id = trueIds[it.container_id];
+        const data = await addItem(t.id, { name: it.name, size: it.size, category: it.category, packed: !!it.packed, container_id: it.container_id, });
+        it.id = data.id;
+        await addListItem(t.id, data.id, false);
+      }
+      setDeletedItems([]);
+
+      nav(`/trip/${t.id}`);
     } catch (e) {
       setErr(safeMsg(e, "Failed to create trip"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onConfirmEdit() {
+    setBusy(true);
+    setErr("");
+
+    try {
+      const trueIds = {}
+
+      for (const it of items.filter(item => item.category == "Container")) {
+        if (it.draft) {
+          const data = await addContainer(tripId, { name: it.name, size: it.size, packed: !!it.packed });
+          trueIds[it.id] = data.id;
+          const listItemData = await addListItem(tripId, data.id, true);
+          it.draft = false;
+          it.id = data.id;
+          it.listItemId = listItemData.listItemId;
+        } else {
+          trueIds[it.id] = it.id;
+          await updateContainer(it.id, {name: it.name, size: it.size});
+        }
+      }
+
+      for (const it of items.filter(item => item.category != "Container")) {
+        if (it.container_id) it.container_id = trueIds[it.container_id];
+        if (it.draft) {
+          const data = await addItem(tripId, { name: it.name, size: it.size, category: it.category, packed: !!it.packed, container_id: it.container_id, });
+          const listItemData = await addListItem(tripId, data.id, false);
+          it.draft = false;
+          it.id = data.id;
+          it.listItemId = listItemData.listItemId;
+        } else {
+          await updateItem(it.id, {name: it.name, size: it.size, category: it.category, container_id: it.container_id});
+        }
+      }
+
+      for (const deleted of deletedItems) {
+        await deleteListItem(deleted.listItemId);
+        if (deleted.category == "Container") await deleteContainer(deleted.id);
+        else await deleteItem(deleted.id);
+      }
+      setDeletedItems([]);
+
+      nav(`/trip/${tripId}`);
+    } catch (e) {
+      setErr(safeMsg(e, "Failed to edit trip"));
     } finally {
       setBusy(false);
     }
@@ -399,7 +428,7 @@ export default function Trip({ mode = "view" }) {
   }
 
   const tagCount = Array.isArray(activeTrip.tags) ? activeTrip.tags.length : 0;
-
+  
   return (
     <div className="container py-4">
       <TripHeader
@@ -413,6 +442,7 @@ export default function Trip({ mode = "view" }) {
         nav={nav}
         onCancelDraft={onCancelDraft}
         onConfirmDraft={onConfirmDraft}
+        onConfirmEdit={onConfirmEdit}
       />
 
       {err ? <div className="alert alert-danger">{err}</div> : null}
@@ -433,25 +463,6 @@ export default function Trip({ mode = "view" }) {
             toggleTag={toggleTag}
           />
 
-          {/*<div className="card card-modern mb-3">
-            <div className="card-body">
-              <div className="fw-semibold mb-2">Add item</div>
-
-              <form onSubmit={onAddItem} className="d-flex flex-wrap gap-2">
-                <input
-                  className="form-control"
-                  style={{ flex: "1 1 260px" }}
-                  placeholder="Add an item..."
-                  value={newItemName}
-                  onChange={(e) => setNewItemName(e.target.value)}
-                />
-                <button className="btn btn-primary btn-modern" disabled={busy}>
-                  Add
-                </button>
-              </form>
-            </div>
-          </div>*/}
-
           {/*<TripSuggestionsCard
             suggestions={suggestions}
             busy={busy}
@@ -470,72 +481,28 @@ export default function Trip({ mode = "view" }) {
           </div>
 
           <div className="col checklist">
-            {activeItems.map(item => <Item key={`checklist-item-${isDraft ? item._tmpId : item.id}`} item={item} setDraftItems={setDraftItems} />)}
-            {isEditLike && <div className="row gx-3">
-              <div className="col-3 pe-1">
-                <button onClick={onAddItem} className="col-12 btn btn-outline-primary btn-sm">Add Item</button>
+            {activeItems.filter(item => !item.container_id).map(item =>
+              <Item
+                key={`checklist-item-${isDraft ? item._tmpId : item.id}`}
+                item={item}
+                setDraftItems={setDraftItems}
+                listItems={item.category == "Container" ? activeItems.filter(other => other.container_id == (isDraft ? item._tmpId : item.id)) : null}
+                onAddItem={onAddItem}
+                isEditLike={isEditLike}
+                isDraft={isDraft}
+                setItems={setItems}
+                addDeletedItem={addDeletedItem}
+              />
+            )}
+            {isEditLike && <div className="row gx-0">
+              <div className="col-6 pe-1">
+                <button onClick={() => onAddItem(false)} className="col-12 btn btn-outline-primary btn-sm">Add Item</button>
               </div>
-              <div className="col-3 ps-1 pe-0">
-                <button className="col-12 btn btn-outline-primary btn-sm">Add Container</button>
+              <div className="col-6 ps-1 pe-0">
+                <button onClick={() => onAddItem(true)} className="col-12 btn btn-outline-primary btn-sm">Add Container</button>
               </div>
             </div>}
           </div>
-
-          {/*sortedItems.length === 0 ? (
-            <div className="text-secondary">No items yet.</div>
-          ) : (
-            <div className="d-flex flex-column gap-2">
-              {sortedItems.map((item) => {
-                const key = item.id ?? item._tmpId;
-
-                return (
-                  <div
-                    key={key}
-                    className="d-flex flex-wrap justify-content-between align-items-center gap-2 p-3 rounded"
-                    style={{
-                      background: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(255,255,255,0.06)",
-                    }}
-                  >
-                    <label className="d-flex align-items-center gap-2 flex-grow-1 m-0">
-                      <input
-                        type="checkbox"
-                        checked={!!item.packed}
-                        onChange={() => onTogglePacked(item)}
-                      />
-                      <span
-                        style={{
-                          textDecoration: item.packed ? "line-through" : "none",
-                          opacity: item.packed ? 0.65 : 1,
-                        }}
-                      >
-                        {item.name}
-                      </span>
-                    </label>
-
-                    {isEditLike ? (
-                      <div className="d-flex gap-2">
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-outline-secondary btn-modern-outline"
-                          onClick={() => onRenameItem(item)}
-                        >
-                          Rename
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-outline-danger btn-modern-outline"
-                          onClick={() => onDeleteItem(item)}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-          )*/}
         </div>
       </div>
     </div>
