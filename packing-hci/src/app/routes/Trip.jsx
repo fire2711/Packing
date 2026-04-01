@@ -1,6 +1,6 @@
 // src/app/routes/Trip.jsx
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { act, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { DragDropProvider } from "@dnd-kit/react";
 import { move } from "@dnd-kit/helpers";
@@ -352,7 +352,7 @@ export default function Trip({ mode = "view" }) {
       const trueIds = {}
 
       for (const [index, it] of draftItems.filter(item => item.category == "Container").entries()) {
-        const data = await addContainer(t.id, { name: it.name, size: it.size, packed: !!it.packed, index: index });
+        const data = await addContainer(t.id, { name: it.name, size: it.size, packed: !!it.packed, index: items.indexOf(it) });
         trueIds[it._tmpId] = data.id;
         it.id = data.id;
         await addListItem(t.id, data.id, true);
@@ -360,7 +360,7 @@ export default function Trip({ mode = "view" }) {
 
       for (const [index, it] of draftItems.filter(item => item.category != "Container").entries()) {
         if (it.container_id) it.container_id = trueIds[it.container_id];
-        const data = await addItem(t.id, { name: it.name, size: it.size, category: it.category, packed: !!it.packed, container_id: it.container_id, index: index + (it.container_id ? 1000 : 0) });
+        const data = await addItem(t.id, { name: it.name, size: it.size, category: it.category, packed: !!it.packed, container_id: it.container_id, index: items.indexOf(it) + (it.container_id ? 1000 : 0) });
         it.id = data.id;
         await addListItem(t.id, data.id, false);
       }
@@ -383,7 +383,7 @@ export default function Trip({ mode = "view" }) {
 
       for (const [index, it] of items.filter(item => item.category == "Container").entries()) {
         if (it.draft) {
-          const data = await addContainer(tripId, { name: it.name, size: it.size, packed: !!it.packed, index: index });
+          const data = await addContainer(tripId, { name: it.name, size: it.size, packed: !!it.packed, index: items.indexOf(it) });
           trueIds[it.id] = data.id;
           const listItemData = await addListItem(tripId, data.id, true);
           it.draft = false;
@@ -391,20 +391,20 @@ export default function Trip({ mode = "view" }) {
           it.listItemId = listItemData.listItemId;
         } else {
           trueIds[it.id] = it.id;
-          await updateContainer(it.id, {name: it.name, size: it.size, index: index});
+          await updateContainer(it.id, {name: it.name, size: it.size, index: items.indexOf(it)});
         }
       }
 
       for (const [index, it] of items.filter(item => item.category != "Container").entries()) {
         if (it.container_id) it.container_id = trueIds[it.container_id];
         if (it.draft) {
-          const data = await addItem(tripId, { name: it.name, size: it.size, category: it.category, packed: !!it.packed, container_id: it.container_id, index: index + (it.container_id ? 1000 : 0) });
+          const data = await addItem(tripId, { name: it.name, size: it.size, category: it.category, packed: !!it.packed, container_id: it.container_id, index: items.indexOf(it) + (it.container_id ? 1000 : 0) });
           const listItemData = await addListItem(tripId, data.id, false);
           it.draft = false;
           it.id = data.id;
           it.listItemId = listItemData.listItemId;
         } else {
-          await updateItem(it.id, {name: it.name, size: it.size, category: it.category, container_id: it.container_id, index: index + (it.container_id ? 1000 : 0)});
+          await updateItem(it.id, {name: it.name, size: it.size, category: it.category, container_id: it.container_id, index: items.indexOf(it) + (it.container_id ? 1000 : 0)});
         }
       }
 
@@ -422,6 +422,8 @@ export default function Trip({ mode = "view" }) {
       setBusy(false);
     }
   }
+
+  useEffect(() => {console.log(activeItems)})
 
   if (!activeTrip) {
     return (
@@ -447,14 +449,14 @@ export default function Trip({ mode = "view" }) {
             if (isDraft) setDraftItems(
               prev => prev.map(
                 item => item._tmpId == sourceId ? {
-                  ...item, container_id: targetId
+                  ...item, container_id: targetId, index: item.index + 1000,
                 } : item
               )
             );
             else setItems(
               prev => prev.map(
                 item => item.id == sourceId ? {
-                  ...item, container_id: targetId
+                  ...item, container_id: targetId, index: item.index + 1000,
                 } : item
               )
             );
