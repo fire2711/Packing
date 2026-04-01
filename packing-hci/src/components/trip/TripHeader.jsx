@@ -56,7 +56,7 @@ export default function TripHeader({
           <>
             <button
               className="btn btn-outline-secondary btn-modern-outline"
-              onClick={() => nav("/")}
+              onClick={() => nav(isEdit ? `/trip/${tripId}` : "/")}
             >
               Back
             </button>

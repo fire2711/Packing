@@ -13,6 +13,7 @@ const Item = ({
   isEditLike,
   isDraft,
   addDeletedItem,
+  focusOnNewItems,
 }) => {
   const nameInputRef = useRef(null);
   const isContainer = item.category == "Container";
@@ -51,7 +52,7 @@ const Item = ({
   };
 
   useEffect(() => {
-    nameInputRef.current?.focus();
+    if (isEditLike && focusOnNewItems) nameInputRef.current?.focus();
   }, []);
 
   return (

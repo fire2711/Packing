@@ -40,6 +40,7 @@ export default function Trip({ mode = "view" }) {
   const [busy, setBusy] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [learnedNames, setLearnedNames] = useState([]);
+  const [focusOnNewItems, setFocusOnNewItems] = useState(false);
 
   const [draftTrip, setDraftTrip] = useState({
     name: "New Trip",
@@ -200,6 +201,7 @@ export default function Trip({ mode = "view" }) {
   }
 
   async function onAddItem(isContainer, container_id) {
+    setFocusOnNewItems(true);
     if (isDraft) {
       setDraftItems((prev) => [
         ...prev,
@@ -492,6 +494,7 @@ export default function Trip({ mode = "view" }) {
                 isDraft={isDraft}
                 setItems={setItems}
                 addDeletedItem={addDeletedItem}
+                focusOnNewItems={focusOnNewItems}
               />
             )}
             {isEditLike && <div className="row gx-0">
