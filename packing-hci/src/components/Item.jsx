@@ -57,8 +57,8 @@ const Item = ({
   };
 
   const deleteItem = () => {
-    if (!item.draft) addDeletedItem(item);
-    if (isContainer) listItems.forEach(listItem => !listItem.draft ? addDeletedItem(listItem) : null);
+    if (item.listItemId) addDeletedItem(item);
+    if (isContainer) listItems.forEach(listItem => listItem.listItemId ? addDeletedItem(listItem) : null);
     if (isDraft) setDraftItems((prev) => prev.filter((x) => x._tmpId !== item._tmpId && x.container_id !== item._tmpId));
     else setItems((prev) => prev.filter((x) => x.id !== item.id && x.container_id !== item.id));
   };

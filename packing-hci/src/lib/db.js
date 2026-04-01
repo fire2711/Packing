@@ -82,7 +82,7 @@ export async function fetchListItems(tripId) {
     ...listItem.container,
     category: "Container",
     listItemId: listItem.id,
-  }).sort((a, b) => a.index - b.index);
+  }).sort((a, b) => a.index + (a.container_id ? 1000 : 0) - b.index);
 }
 
 export async function addItem(tripId, item) {

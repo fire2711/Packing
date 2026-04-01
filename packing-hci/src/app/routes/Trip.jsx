@@ -207,12 +207,12 @@ export default function Trip({ mode = "view" }) {
     if (isDraft) {
       setDraftItems((prev) => [
         ...prev,
-        { draft: true, index: activeItems.length, _tmpId: tmpId(), name: "", category: isContainer ? "Container" : "General", size: "medium", packed: false, container_id: container_id, },
+        { draft: true, index: activeItems.length + (container_id ? 1000 : 0), _tmpId: tmpId(), name: "", category: isContainer ? "Container" : "General", size: "medium", packed: false, container_id: container_id, },
       ]);
     } else {
       setItems((prev) => [
         ...prev,
-        { draft: true, index: activeItems.length, id: tmpId(), name: "", category: isContainer ? "Container" : "General", size: "medium", packed: false, container_id: container_id, },
+        { draft: true, index: activeItems.length + (container_id ? 1000 : 0), id: tmpId(), name: "", category: isContainer ? "Container" : "General", size: "medium", packed: false, container_id: container_id, },
       ]);
     }
   }
@@ -360,7 +360,7 @@ export default function Trip({ mode = "view" }) {
 
       for (const [index, it] of draftItems.filter(item => item.category != "Container").entries()) {
         if (it.container_id) it.container_id = trueIds[it.container_id];
-        const data = await addItem(t.id, { name: it.name, size: it.size, category: it.category, packed: !!it.packed, container_id: it.container_id, index: index });
+        const data = await addItem(t.id, { name: it.name, size: it.size, category: it.category, packed: !!it.packed, container_id: it.container_id, index: index + (it.container_id ? 1000 : 0) });
         it.id = data.id;
         await addListItem(t.id, data.id, false);
       }
@@ -398,13 +398,13 @@ export default function Trip({ mode = "view" }) {
       for (const [index, it] of items.filter(item => item.category != "Container").entries()) {
         if (it.container_id) it.container_id = trueIds[it.container_id];
         if (it.draft) {
-          const data = await addItem(tripId, { name: it.name, size: it.size, category: it.category, packed: !!it.packed, container_id: it.container_id, index: index });
+          const data = await addItem(tripId, { name: it.name, size: it.size, category: it.category, packed: !!it.packed, container_id: it.container_id, index: index + (it.container_id ? 1000 : 0) });
           const listItemData = await addListItem(tripId, data.id, false);
           it.draft = false;
           it.id = data.id;
           it.listItemId = listItemData.listItemId;
         } else {
-          await updateItem(it.id, {name: it.name, size: it.size, category: it.category, container_id: it.container_id, index: index});
+          await updateItem(it.id, {name: it.name, size: it.size, category: it.category, container_id: it.container_id, index: index + (it.container_id ? 1000 : 0)});
         }
       }
 
@@ -460,8 +460,8 @@ export default function Trip({ mode = "view" }) {
             );
           }
         }
-        if (isDraft) setDraftItems(items => move(items, event));
-        else setItems(items => move(items, event));
+        const setActiveItems = isDraft ? setDraftItems : setItems;
+        setActiveItems(items => [...move(items.filter(item => !item.container_id), event), ...items.filter(item => item.container_id)]);
     }}
     >
       <div className="container py-4">
