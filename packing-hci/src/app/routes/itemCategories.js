@@ -18,7 +18,7 @@ export const itemCategories = {
     icon: faIdCard,
   },
   Electronics: {
-    color: "#767288",
+    color: "#635c71",
     icon: faMobileScreen,
   },
   Toiletries: {

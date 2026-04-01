@@ -77,12 +77,12 @@ export async function fetchListItems(tripId) {
   if (error) throw error;
   return data.map(listItem => listItem.item ? {
     ...listItem.item,
-    listItemId: listItem.id
+    listItemId: listItem.id,
   } : {
     ...listItem.container,
     category: "Container",
-    listItemId: listItem.id
-  });
+    listItemId: listItem.id,
+  }).sort((a, b) => a.index - b.index);
 }
 
 export async function addItem(tripId, item) {
@@ -99,6 +99,7 @@ export async function addItem(tripId, item) {
       size: item.size,
       packed: !!item.packed,
       container_id: item.container_id,
+      index: item.index,
     })
     .select("*")
     .single();
@@ -119,6 +120,7 @@ export async function addContainer(tripId, item) {
       name: item.name,
       size: item.size,
       packed: !!item.packed,
+      index: item.index,
     })
     .select("*")
     .single();

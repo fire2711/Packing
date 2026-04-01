@@ -13,6 +13,11 @@
   width: 100%;
   box-shadow: 2px 2px 6px 0 rgba(0, 0, 0, 0.4);
   overflow: hidden;
+  transition: opacity 0.2s;
+}
+
+.item-packed {
+  opacity: 0.5;
 }
 
 .item-main {
@@ -24,10 +29,65 @@
   position: relative;
 }
 
+.item-main-clickable {
+  cursor: pointer;
+}
+
 .item-grip {
-  width: 30px;
+  width: 38px;
   height: 13px;
-  min-width: 30px;
+  min-width: 38px;
+}
+
+.item-grip-area {
+  cursor: pointer;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+}
+
+.item-checkbox {
+  width: 18px;
+  aspect-ratio: 1;
+  height: auto;
+  margin: 0 10px 0 10px;
+  border-radius: 3px;
+  transition: background 0.2s;
+}
+
+.item-checkbox-area {
+  position: relative;
+}
+
+.item-check {
+  position: absolute;
+  width: 18px;
+  top: 0;
+  right: 10px;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+.item-check-visible {
+  opacity: 1;
+}
+
+.item-check-invisible {
+  opacity: 0;
+}
+
+.item-checkbox-unselected {
+  background-color: rgba(255, 255, 255, 0.9);
+  border: rgba(0, 0, 0, 0.8) solid 2px;
+}
+
+.item-checkbox-selected {
+  background-color: rgba(0, 0, 0, 0.8);
+  border: rgba(0, 0, 0, 1) solid 2px;
+}
+
+.item-checkbox-unselected:hover {
+  background-color: rgba(210, 210, 210, 0.9);
 }
 
 .item-delete {
@@ -137,6 +197,8 @@
   align-items: center;
   gap: 10px;
   padding: 10px;
+  overflow: hidden;
+  transition: height 0.2s;
 }
 
 .container-list-add-item {
@@ -149,6 +211,6 @@
   height: 50px;
 }
 
-.container-list-add-item:hover {
+.container-list-add-item:hover, .container-list-add-item-hover {
   background: rgba(255, 255, 255, 0.15);
 }

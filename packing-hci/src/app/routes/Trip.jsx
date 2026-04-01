@@ -2,6 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { DragDropProvider } from "@dnd-kit/react";
+import { move } from "@dnd-kit/helpers";
 import {
   addItem,
   createTrip,
@@ -205,12 +207,12 @@ export default function Trip({ mode = "view" }) {
     if (isDraft) {
       setDraftItems((prev) => [
         ...prev,
-        { draft: true, _tmpId: tmpId(), name: "", category: isContainer ? "Container" : "General", size: "medium", packed: false, container_id: container_id, },
+        { draft: true, index: activeItems.length, _tmpId: tmpId(), name: "", category: isContainer ? "Container" : "General", size: "medium", packed: false, container_id: container_id, },
       ]);
     } else {
       setItems((prev) => [
         ...prev,
-        { draft: true, id: tmpId(), name: "", category: isContainer ? "Container" : "General", size: "medium", packed: false, container_id: container_id, },
+        { draft: true, index: activeItems.length, id: tmpId(), name: "", category: isContainer ? "Container" : "General", size: "medium", packed: false, container_id: container_id, },
       ]);
     }
   }
@@ -349,16 +351,16 @@ export default function Trip({ mode = "view" }) {
 
       const trueIds = {}
 
-      for (const it of draftItems.filter(item => item.category == "Container")) {
-        const data = await addContainer(t.id, { name: it.name, size: it.size, packed: !!it.packed });
+      for (const [index, it] of draftItems.filter(item => item.category == "Container").entries()) {
+        const data = await addContainer(t.id, { name: it.name, size: it.size, packed: !!it.packed, index: index });
         trueIds[it._tmpId] = data.id;
         it.id = data.id;
         await addListItem(t.id, data.id, true);
       }
 
-      for (const it of draftItems.filter(item => item.category != "Container")) {
+      for (const [index, it] of draftItems.filter(item => item.category != "Container").entries()) {
         if (it.container_id) it.container_id = trueIds[it.container_id];
-        const data = await addItem(t.id, { name: it.name, size: it.size, category: it.category, packed: !!it.packed, container_id: it.container_id, });
+        const data = await addItem(t.id, { name: it.name, size: it.size, category: it.category, packed: !!it.packed, container_id: it.container_id, index: index });
         it.id = data.id;
         await addListItem(t.id, data.id, false);
       }
@@ -379,9 +381,9 @@ export default function Trip({ mode = "view" }) {
     try {
       const trueIds = {}
 
-      for (const it of items.filter(item => item.category == "Container")) {
+      for (const [index, it] of items.filter(item => item.category == "Container").entries()) {
         if (it.draft) {
-          const data = await addContainer(tripId, { name: it.name, size: it.size, packed: !!it.packed });
+          const data = await addContainer(tripId, { name: it.name, size: it.size, packed: !!it.packed, index: index });
           trueIds[it.id] = data.id;
           const listItemData = await addListItem(tripId, data.id, true);
           it.draft = false;
@@ -389,20 +391,20 @@ export default function Trip({ mode = "view" }) {
           it.listItemId = listItemData.listItemId;
         } else {
           trueIds[it.id] = it.id;
-          await updateContainer(it.id, {name: it.name, size: it.size});
+          await updateContainer(it.id, {name: it.name, size: it.size, index: index});
         }
       }
 
-      for (const it of items.filter(item => item.category != "Container")) {
+      for (const [index, it] of items.filter(item => item.category != "Container").entries()) {
         if (it.container_id) it.container_id = trueIds[it.container_id];
         if (it.draft) {
-          const data = await addItem(tripId, { name: it.name, size: it.size, category: it.category, packed: !!it.packed, container_id: it.container_id, });
+          const data = await addItem(tripId, { name: it.name, size: it.size, category: it.category, packed: !!it.packed, container_id: it.container_id, index: index });
           const listItemData = await addListItem(tripId, data.id, false);
           it.draft = false;
           it.id = data.id;
           it.listItemId = listItemData.listItemId;
         } else {
-          await updateItem(it.id, {name: it.name, size: it.size, category: it.category, container_id: it.container_id});
+          await updateItem(it.id, {name: it.name, size: it.size, category: it.category, container_id: it.container_id, index: index});
         }
       }
 
@@ -430,84 +432,117 @@ export default function Trip({ mode = "view" }) {
   }
 
   const tagCount = Array.isArray(activeTrip.tags) ? activeTrip.tags.length : 0;
-  
+
   return (
-    <div className="container py-4">
-      <TripHeader
-        activeTrip={activeTrip}
-        stats={stats}
-        tagCount={tagCount}
-        isDraft={isDraft}
-        isEdit={isEdit}
-        busy={busy}
-        tripId={tripId}
-        nav={nav}
-        onCancelDraft={onCancelDraft}
-        onConfirmDraft={onConfirmDraft}
-        onConfirmEdit={onConfirmEdit}
-      />
+    <DragDropProvider
+      onDragEnd={(event) => {
+        if (event.canceled) return;
+        const {source, target} = event.operation;
+        if (source?.id && target?.id) {
+          const targetId = target.id.split("%")[0];
+          const targetType = target.id.split("%")[1];
+          const sourceId = source.id.split("%")[0];
+          const sourceType = source.id.split("%")[1];
+          if (targetType == "drop" && sourceType == "item") {
+            if (isDraft) setDraftItems(
+              prev => prev.map(
+                item => item._tmpId == sourceId ? {
+                  ...item, container_id: targetId
+                } : item
+              )
+            );
+            else setItems(
+              prev => prev.map(
+                item => item.id == sourceId ? {
+                  ...item, container_id: targetId
+                } : item
+              )
+            );
+          }
+        }
+        if (isDraft) setDraftItems(items => move(items, event));
+        else setItems(items => move(items, event));
+    }}
+    >
+      <div className="container py-4">
+        <TripHeader
+          activeTrip={activeTrip}
+          stats={stats}
+          tagCount={tagCount}
+          isDraft={isDraft}
+          isEdit={isEdit}
+          busy={busy}
+          tripId={tripId}
+          nav={nav}
+          onCancelDraft={onCancelDraft}
+          onConfirmDraft={onConfirmDraft}
+          onConfirmEdit={onConfirmEdit}
+        />
 
-      {err ? <div className="alert alert-danger">{err}</div> : null}
+        {err ? <div className="alert alert-danger">{err}</div> : null}
 
-      {!isEditLike && <TripProgressCard
-        stats={stats}
-        busy={busy}
-        isEditLike={isEditLike}
-        onResetChecks={onResetChecks}
-        onClearAllItems={onClearAllItems}
-      />}
+        {!isEditLike && <TripProgressCard
+          stats={stats}
+          busy={busy}
+          isEditLike={isEditLike}
+          onResetChecks={onResetChecks}
+          onClearAllItems={onClearAllItems}
+        />}
 
-      {isEditLike ? (
-        <>
-          <TripDetailsCard
-            activeTrip={activeTrip}
-            patchActiveTrip={patchActiveTrip}
-            toggleTag={toggleTag}
-          />
+        {isEditLike ? (
+          <>
+            <TripDetailsCard
+              activeTrip={activeTrip}
+              patchActiveTrip={patchActiveTrip}
+              toggleTag={toggleTag}
+            />
 
-          {/*<TripSuggestionsCard
-            suggestions={suggestions}
-            busy={busy}
-            generating={generating}
-            onGenerateStarterList={onGenerateStarterList}
-            onAddSuggestion={onAddSuggestion}
-          />*/}
-        </>
-      ) : null}
+            {/*<TripSuggestionsCard
+              suggestions={suggestions}
+              busy={busy}
+              generating={generating}
+              onGenerateStarterList={onGenerateStarterList}
+              onAddSuggestion={onAddSuggestion}
+            />*/}
+          </>
+        ) : null}
 
-      <div className="card card-modern">
-        <div className="card-body">
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <div className="fw-semibold fs-5">Checklist</div>
-            <span className="badge text-bg-secondary">{sortedItems.length}</span>
-          </div>
+        <div className="card card-modern">
+          <div className="card-body">
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <div className="fw-semibold fs-5">Checklist</div>
+              <span className="badge text-bg-secondary">{sortedItems.length}</span>
+            </div>
 
-          <div className="col checklist">
-            {activeItems.filter(item => !item.container_id).map(item =>
-              <Item
-                key={`checklist-item-${isDraft ? item._tmpId : item.id}`}
-                item={item}
-                setDraftItems={setDraftItems}
-                listItems={item.category == "Container" ? activeItems.filter(other => other.container_id == (isDraft ? item._tmpId : item.id)) : null}
-                onAddItem={onAddItem}
-                isEditLike={isEditLike}
-                isDraft={isDraft}
-                setItems={setItems}
-                addDeletedItem={addDeletedItem}
-                focusOnNewItems={focusOnNewItems}
-              />
-            )}
-            {isEditLike && <div className="row gx-0">
-              <div className="col-6 pe-1">
-                <button onClick={() => onAddItem(false)} className="col-12 btn btn-outline-primary btn-sm">Add Item</button>
-              </div>
-              <div className="col-6 ps-1 pe-0">
-                <button onClick={() => onAddItem(true)} className="col-12 btn btn-outline-primary btn-sm">Add Container</button>
-              </div>
-            </div>}
+            <div className="col checklist">
+              {activeItems.filter(item => !item.container_id).map((item, index) =>
+                <Item
+                  key={`${isDraft ? item._tmpId : item.id}%${item.category == "Container" ? "container" : "item"}`}
+                  item={item}
+                  setDraftItems={setDraftItems}
+                  listItems={item.category == "Container" ? activeItems.filter(other => other.container_id == (isDraft ? item._tmpId : item.id)) : null}
+                  onAddItem={onAddItem}
+                  isEditLike={isEditLike}
+                  isDraft={isDraft}
+                  setItems={setItems}
+                  addDeletedItem={addDeletedItem}
+                  focusOnNewItems={focusOnNewItems}
+                  index={index}
+                  group="column1"
+                />
+              )}
+              {isEditLike && <div className="row gx-0">
+                <div className="col-6 pe-1">
+                  <button onClick={() => onAddItem(false)} className="col-12 btn btn-outline-primary btn-sm">Add Item</button>
+                </div>
+                <div className="col-6 ps-1 pe-0">
+                  <button onClick={() => onAddItem(true)} className="col-12 btn btn-outline-primary btn-sm">Add Container</button>
+                </div>
+              </div>}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </DragDropProvider>
   );
 }
