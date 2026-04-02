@@ -22,16 +22,12 @@ export default function TripHeader({
           <h1 className="h2 mb-0 text-white">New Trip</h1>
         </div>
         : <div className="d-flex align-items-center gap-2">
-          <h1 className="h2 mb-0">{activeTrip.name || "Untitled trip"}</h1>
-          <span className="badge text-bg-secondary">
-            {tripTypeLabel(activeTrip.trip_type)} • {activeTrip.days}d
-            {tagCount ? ` • ${tagCount} tags` : ""}
-          </span>
+          <h1 className="h2 mb-0 trip-name">{activeTrip.name || "Untitled trip"}</h1>
         </div>}
 
-        {!isDraft && <div className="text-secondary small mt-1">
-          {stats.packed}/{stats.total} packed • {stats.percent}%
-          {isDraft ? <span className="ms-2 badge text-bg-secondary">Draft</span> : null}
+        {(!isEdit && !isDraft) && <div className="text-secondary small mt-1">
+          <p className="m-0">{activeTrip.trip_type && `${tripTypeLabel(activeTrip.trip_type)}`} • {activeTrip.days} day{activeTrip.days > 1 ? "s" : ""}</p>
+          <p className="m-0">Let's pack! Mark the items in this list as you pack them.</p>
         </div>}
       </div>
 

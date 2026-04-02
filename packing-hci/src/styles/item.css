@@ -8,12 +8,13 @@
   gap: 15px;
   display: flex;
   flex-direction: column;
-  transition: gap 0.2s ease;
+  transition: gap 0.2s ease, padding-top 0.2s ease;
   height: fit-content;
 }
 
 .checklist-dragging {
   gap: 50px;
+  padding-top: 35px;
 }
 
 .column-space {
@@ -227,6 +228,6 @@
   height: 50px;
 }
 
-.container-list-add-item:hover, .container-list-add-item-hover {
+.container-list-add-item:hover {
   background: rgba(255, 255, 255, 0.15);
 }

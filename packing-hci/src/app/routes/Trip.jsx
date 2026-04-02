@@ -38,7 +38,6 @@ export default function Trip({ mode = "view" }) {
   const isEditLike = isDraft || isEdit;
 
   const [trip, setTrip] = useState(null);
-  const [items, setItems] = useState([]);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -54,12 +53,10 @@ export default function Trip({ mode = "view" }) {
     tags: [],
   });
 
-  const [draftItems, setDraftItems] = useState([]);
   const [deletedItems, setDeletedItems] = useState([]);
 
   const activeTrip = isDraft ? draftTrip : trip;
-  const activeItems = isDraft ? draftItems : items;
-  const [splitItems, setSplitItems] = useState({ left: [], right: [] });
+  const [items, setItems] = useState({ left: [], right: [] });
 
   const leftColumnRef = useRef(null);
   const rightColumnRef = useRef(null);
@@ -77,8 +74,9 @@ export default function Trip({ mode = "view" }) {
       const newItems = {};
       its.forEach(it => {
         newItems[it.column] = its.filter(item => item.column == it.column);
+        if (it.category == "Container" && !newItems[it.id + "%list"]) newItems[it.id + "%list"] = [];
       });
-      setSplitItems(newItems);
+      setItems(newItems);
     } catch (e) {
       setErr(safeMsg(e, "Failed to load trip"));
     }
@@ -92,8 +90,9 @@ export default function Trip({ mode = "view" }) {
       const newItems = {};
       its.forEach(it => {
         newItems[it.column] = its.filter(item => item.column == it.column);
+        if (it.category == "Container" && !newItems[it.id + "%list"]) newItems[it.id + "%list"] = [];
       });
-      setSplitItems(newItems);
+      setItems(newItems);
     } catch {
       // ignore
     }
@@ -149,17 +148,27 @@ export default function Trip({ mode = "view" }) {
   }, [activeTrip?.trip_type, isEditLike, tripId]);
 
   const stats = useMemo(() => {
-    const total = Object.values(splitItems).flat().length;
-    const packed = Object.values(splitItems).flat().filter((i) => !!i?.packed).length;
+    const uniqueItems = [
+      ...new Map(
+        Object.values(items)
+          .flat()
+          .filter(Boolean)
+          .map((item) => [item.id, item])
+      ).values(),
+    ];
+
+    const total = uniqueItems.length;
+    const packed = uniqueItems.filter((item) => item.packed).length;
+
     return { total, packed, percent: pct(packed, total) };
-  }, [splitItems]);
+  }, [items]);
 
   /*const sortedItems = useMemo(() => {
-    return [...activeItems].sort((a, b) => {
+    return [...items].sort((a, b) => {
       if (Number(a.packed) !== Number(b.packed)) return Number(a.packed) - Number(b.packed);
       return (a.name || "").localeCompare(b.name || "");
     });
-  }, [activeItems]);*/
+  }, [items]);*/
 
   useEffect(() => {
     const leftResizeObserver = new ResizeObserver(() => {
@@ -183,9 +192,9 @@ export default function Trip({ mode = "view" }) {
       frequentNames: learnedNames,
     });
 
-    const existing = new Set(activeItems.map((i) => normalizeName(i.name)));
+    const existing = new Set(Object.values(items).flat().map((i) => normalizeName(i.name)));
     return generated.filter((s) => !existing.has(normalizeName(s.name)));
-  }, [activeTrip, activeItems, isEditLike, learnedNames]);
+  }, [activeTrip, items, isEditLike, learnedNames]);
 
   function patchActiveTrip(patch) {
     if (isDraft) {
@@ -213,7 +222,7 @@ export default function Trip({ mode = "view" }) {
     const nextPacked = !item.packed;
 
     if (isDraft) {
-      setDraftItems((prev) =>
+      setItems((prev) =>
         prev.map((x) => (x.id === item.id ? { ...x, packed: nextPacked } : x))
       );
       return;
@@ -241,7 +250,14 @@ export default function Trip({ mode = "view" }) {
       container_id: addToContainer ? column.split("%")[0] : null,
       column: column,
     };
-    setSplitItems(prev => ({...prev, [column]: prev[column] ? [...prev[column], newItem] : [newItem]}));
+    setItems(prev => {
+      const newItems = {
+        ...prev,
+        [column]: prev[column] ? [...prev[column], newItem] : [newItem],
+      };
+      if (isContainer) newItems[newItem.id + "%list"] = [];
+      return newItems;
+    });
   }
 
   function addDeletedItem(item_id) {
@@ -252,10 +268,10 @@ export default function Trip({ mode = "view" }) {
     setErr("");
 
     if (isDraft) {
-      const exists = draftItems.some((x) => normalizeName(x.name) === normalizeName(s.name));
+      const exists = items.some((x) => normalizeName(x.name) === normalizeName(s.name));
       if (exists) return;
 
-      setDraftItems((prev) => [
+      setItems((prev) => [
         ...prev,
         { id: tmpId(), name: s.name, packed: false },
       ]);
@@ -281,7 +297,7 @@ export default function Trip({ mode = "view" }) {
 
     try {
       if (isDraft) {
-        const existing = new Set(draftItems.map((x) => normalizeName(x.name)));
+        const existing = new Set(items.map((x) => normalizeName(x.name)));
         const toAdd = suggestions
           .filter((s) => !existing.has(normalizeName(s.name)))
           .map((s) => ({
@@ -290,7 +306,7 @@ export default function Trip({ mode = "view" }) {
             packed: false,
           }));
 
-        setDraftItems((prev) => [...prev, ...toAdd]);
+        setItems((prev) => [...prev, ...toAdd]);
         return;
       }
 
@@ -337,7 +353,7 @@ export default function Trip({ mode = "view" }) {
     if (!ok) return;
 
     if (isDraft) {
-      setDraftItems([]);
+      setItems([]);
       return;
     }
 
@@ -373,17 +389,17 @@ export default function Trip({ mode = "view" }) {
       });
 
       const trueIds = {left: "left", right: "right"};
-      const normalItems = [...splitItems.left, ...splitItems.right];
+      const normalItems = [...items.left, ...items.right];
 
       for (const it of normalItems.filter(item => item.category == "Container")) {
-        const data = await addContainer(t.id, { name: it.name, size: it.size, packed: !!it.packed, index: normalItems.indexOf(it), column: splitItems.left.includes(it) ? "left" : "right" });
+        const data = await addContainer(t.id, { name: it.name, size: it.size, packed: !!it.packed, index: normalItems.indexOf(it), column: items.left.includes(it) ? "left" : "right" });
         trueIds[it.id] = data.id;
         trueIds[it.id + "%list"] = data.id + "%list";
         it.id = data.id;
         await addListItem(t.id, data.id, true);
       }
 
-      for (const [column, group] of Object.entries(splitItems)) {
+      for (const [column, group] of Object.entries(items)) {
         for (const [i, it] of group.entries()) {
           if (it.category == "Container") continue;
           const isContainerGroup = column.endsWith("%list");
@@ -395,9 +411,9 @@ export default function Trip({ mode = "view" }) {
         }
       }
 
-      setSplitItems(items => {
+      setItems(items => {
         const newItems = items;
-        for (const [column, group] of Object.entries(splitItems)) {
+        for (const [column, group] of Object.entries(items)) {
           if (column == "left" && column == "right") {
             newItems[column] = group;
           } else {
@@ -424,11 +440,11 @@ export default function Trip({ mode = "view" }) {
     try {
       const trueIds = {left: "left", right: "right"};
 
-      const normalItems = [...splitItems.left, ...splitItems.right];
+      const normalItems = [...items.left, ...items.right];
 
       for (const it of normalItems.filter(item => item.category == "Container")) {
         if (it.draft) {
-          const data = await addContainer(tripId, { name: it.name, size: it.size, packed: !!it.packed, index: normalItems.indexOf(it), column: splitItems.left.includes(it) ? "left" : "right" });
+          const data = await addContainer(tripId, { name: it.name, size: it.size, packed: !!it.packed, index: normalItems.indexOf(it), column: items.left.includes(it) ? "left" : "right" });
           trueIds[it.id] = data.id;
           trueIds[it.id + "%list"] = data.id + "%list";
           const listItemData = await addListItem(tripId, data.id, true);
@@ -438,11 +454,11 @@ export default function Trip({ mode = "view" }) {
         } else {
           trueIds[it.id] = it.id;
           trueIds[it.id + "%list"] = it.id + "%list";
-          await updateContainer(it.id, { name: it.name, size: it.size, index: normalItems.indexOf(it), column: splitItems.left.includes(it) ? "left" : "right" });
+          await updateContainer(it.id, { name: it.name, size: it.size, index: normalItems.indexOf(it), column: items.left.includes(it) ? "left" : "right" });
         }
       }
 
-      for (const [column, group] of Object.entries(splitItems)) {
+      for (const [column, group] of Object.entries(items)) {
         for (const [i, it] of group.entries()) {
           if (it.category == "Container") continue;
           const isContainerGroup = column.endsWith("%list");
@@ -467,9 +483,9 @@ export default function Trip({ mode = "view" }) {
       }
       setDeletedItems([]);
 
-      setSplitItems(items => {
+      setItems(items => {
         const newItems = items;
-        for (const [column, group] of Object.entries(splitItems)) {
+        for (const [column, group] of Object.entries(items)) {
           if (column == "left" && column == "right") {
             newItems[column] = group;
           } else {
@@ -488,7 +504,7 @@ export default function Trip({ mode = "view" }) {
   }
 
   useEffect(() => {
-    console.log(splitItems);
+    console.log(items);
   });
 
   const [test, setTest] = useState("");
@@ -510,7 +526,7 @@ export default function Trip({ mode = "view" }) {
       }}
       onDragOver={(event) => {
         event.preventDefault();
-        setSplitItems(items => move(items, event));
+        setItems(items => move(items, event));
       }}
       onDragEnd={(event) => {
         setDragging(false);
@@ -565,7 +581,7 @@ export default function Trip({ mode = "view" }) {
           <div className="card-body">
             <div className="d-flex justify-content-between align-items-center mb-3">
               <div className="fw-semibold fs-5">Checklist</div>
-              <span className="badge text-bg-secondary">{Object.values(splitItems).flat().length}</span>
+              <span className="badge text-bg-secondary">{stats.total}</span>
             </div>
 
             <div className="checklist-columns">
@@ -575,12 +591,12 @@ export default function Trip({ mode = "view" }) {
                   onAddItem={onAddItem}
                   isEditLike={isEditLike}
                   isDraft={isDraft}
-                  splitItems={splitItems}
-                  setSplitItems={setSplitItems}
+                  items={items}
+                  setItems={setItems}
                   addDeletedItem={addDeletedItem}
                   focusOnNewItems={focusOnNewItems}
                   side={side}
-                  children={splitItems[side]}
+                  children={items[side]}
                   dragging={dragging}
                   columnSizes={columnSizes}
                   columnRef={side == "left" ? leftColumnRef : rightColumnRef}

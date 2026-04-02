@@ -5,9 +5,9 @@ import { CollisionPriority } from "@dnd-kit/abstract";
 
 export const Column = ({
   children,
-  splitItems,
+  items,
   side,
-  setSplitItems,
+  setItems,
   onAddItem,
   isEditLike,
   isDraft,
@@ -31,8 +31,8 @@ export const Column = ({
           <Item
             key={item.id}
             item={item}
-            setSplitItems={setSplitItems}
-            listItems={item.category == "Container" ? splitItems[item.id + "%list"] : []}
+            setItems={setItems}
+            listItems={item.category == "Container" ? items[item.id + "%list"] : []}
             onAddItem={onAddItem}
             isEditLike={isEditLike}
             isDraft={isDraft}

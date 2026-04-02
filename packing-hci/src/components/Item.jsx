@@ -10,7 +10,7 @@ import { CollisionPriority } from "@dnd-kit/abstract";
 
 const Item = ({
   item,
-  setSplitItems,
+  setItems,
   listItems,
   onAddItem,
   isEditLike,
@@ -29,7 +29,6 @@ const Item = ({
     type: isContainer ? "container" : "item",
     accept: "item",
   });
-  const { ref: dropLocation, isDropTarget: dropOver } = useDroppable({id: item.id + "%drop"});
   const { ref: listRef } = useDroppable({
     id: item.id + "%list",
     accept: "item",
@@ -38,7 +37,7 @@ const Item = ({
   });
 
   const setActiveItem = (field, value) => {
-    setSplitItems(prev => {
+    setItems(prev => {
       const column = prev[group].map(x => x.id === item.id ? (() => {
         x[field] = value;
         return x;
@@ -62,7 +61,7 @@ const Item = ({
   const deleteItem = () => {
     if (item.listItemId) addDeletedItem(item);
     if (isContainer) listItems?.forEach(listItem => listItem.listItemId ? addDeletedItem(listItem) : null);
-    setSplitItems(prev => {
+    setItems(prev => {
       const column = prev[group].filter(x => x.id !== item.id);
       return {...prev, [group]: column};
     })
@@ -78,7 +77,7 @@ const Item = ({
     } else {
       updateItem(item.id, { packed: !item.packed });
       if (item.container_id && item.packed) {
-        setSplitItems(prev => {return {
+        setItems(prev => {return {
           ...prev,
           left: prev.left?.map(x => x.id == item.container_id ? {...x, packed: false} : x),
           right: prev.right?.map(x => x.id == item.container_id ? {...x, packed: false} : x),
@@ -143,7 +142,7 @@ const Item = ({
       >
         {listItems?.map((listItem, i) => <Item
           item={listItem}
-          setSplitItems={setSplitItems}
+          setItems={setItems}
           isEditLike={isEditLike}
           key={`${listItem.id}%item`}
           isDraft={isDraft}
@@ -154,12 +153,7 @@ const Item = ({
         />)}
         {isEditLike &&
         <button
-          ref={dropLocation}
-          className={
-            `container-list-add-item rounded-4 ${
-              dropOver ? "container-list-add-item-hover" : ""
-            }`
-          }
+          className={`container-list-add-item rounded-4`}
           onClick={
             () => onAddItem(false, item.id + "%list", true)
           }
