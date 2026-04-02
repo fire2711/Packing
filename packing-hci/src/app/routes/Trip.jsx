@@ -150,7 +150,7 @@ export default function Trip({ mode = "view" }) {
 
   const stats = useMemo(() => {
     const total = Object.values(splitItems).flat().length;
-    const packed = Object.values(splitItems).flat().filter((i) => !!i.packed).length;
+    const packed = Object.values(splitItems).flat().filter((i) => !!i?.packed).length;
     return { total, packed, percent: pct(packed, total) };
   }, [splitItems]);
 
@@ -372,7 +372,7 @@ export default function Trip({ mode = "view" }) {
         tags: Array.isArray(draftTrip.tags) ? draftTrip.tags : [],
       });
 
-      const trueIds = {}
+      const trueIds = {left: "left", right: "right"};
       const normalItems = [...splitItems.left, ...splitItems.right];
 
       for (const it of normalItems.filter(item => item.category == "Container")) {
@@ -386,11 +386,10 @@ export default function Trip({ mode = "view" }) {
       for (const [column, group] of Object.entries(splitItems)) {
         for (const [i, it] of group.entries()) {
           if (it.category == "Container") continue;
-          if (it.container_id) {
-            it.container_id = trueIds[it.container_id];
-            it.column = trueIds[it.column];
-          }
-          const data = await addItem(t.id, { name: it.name, size: it.size, category: it.category, packed: !!it.packed, container_id: it.container_id, index: normalItems.includes(it) ? normalItems.indexOf(it) : i, column: trueIds[column] });
+          const isContainerGroup = column.endsWith("%list");
+          it.container_id = isContainerGroup ? trueIds[column.split("%", 1)[0]] : null;
+          it.column = trueIds[column] ?? column;
+          const data = await addItem(t.id, { name: it.name, size: it.size, category: it.category, packed: !!it.packed, container_id: it.container_id, index: normalItems.includes(it) ? normalItems.indexOf(it) : i, column: it.column });
           it.id = data.id;
           await addListItem(t.id, data.id, false);
         }
@@ -423,7 +422,7 @@ export default function Trip({ mode = "view" }) {
     setErr("");
 
     try {
-      const trueIds = {}
+      const trueIds = {left: "left", right: "right"};
 
       const normalItems = [...splitItems.left, ...splitItems.right];
 
@@ -446,18 +445,17 @@ export default function Trip({ mode = "view" }) {
       for (const [column, group] of Object.entries(splitItems)) {
         for (const [i, it] of group.entries()) {
           if (it.category == "Container") continue;
-          if (it.container_id) {
-            it.container_id = trueIds[it.container_id];
-            it.column = trueIds[it.column];
-          }
+          const isContainerGroup = column.endsWith("%list");
+          it.container_id = isContainerGroup ? trueIds[column.split("%", 1)[0]] : null;
+          it.column = trueIds[column] ?? column;
           if (it.draft) {
-            const data = await addItem(tripId, { name: it.name, size: it.size, category: it.category, packed: !!it.packed, container_id: it.container_id, index: normalItems.includes(it) ? normalItems.indexOf(it) : i, column: trueIds[column] });
+            const data = await addItem(tripId, { name: it.name, size: it.size, category: it.category, packed: !!it.packed, container_id: it.container_id, index: normalItems.includes(it) ? normalItems.indexOf(it) : i, column: it.column });
             const listItemData = await addListItem(tripId, data.id, false);
             it.draft = false;
             it.id = data.id;
             it.listItemId = listItemData.listItemId;
           } else {
-            await updateItem(it.id, { name: it.name, size: it.size, category: it.category, container_id: it.container_id, index: normalItems.includes(it) ? normalItems.indexOf(it) : i, column: trueIds[column] });
+            await updateItem(it.id, { name: it.name, size: it.size, category: it.category, container_id: it.container_id, index: normalItems.includes(it) ? normalItems.indexOf(it) : i, column: it.column });
           }
         }
       }

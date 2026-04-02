@@ -70,7 +70,7 @@ const Item = ({
 
   const onItemClick = () => {
     if (isContainer) {
-      listItems.forEach(listItem => {
+      listItems?.forEach(listItem => {
         listItem.packed = !item.packed;
         updateItem(listItem.id, { packed: !item.packed });
       });
@@ -80,8 +80,8 @@ const Item = ({
       if (item.container_id && item.packed) {
         setSplitItems(prev => {return {
           ...prev,
-          left: prev.left.map(x => x.id == item.container_id ? {...x, packed: false} : x),
-          right: prev.right.map(x => x.id == item.container_id ? {...x, packed: false} : x),
+          left: prev.left?.map(x => x.id == item.container_id ? {...x, packed: false} : x),
+          right: prev.right?.map(x => x.id == item.container_id ? {...x, packed: false} : x),
         }});
         updateContainer(item.container_id, { packed: false });
       }
