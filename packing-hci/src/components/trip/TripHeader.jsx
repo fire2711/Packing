@@ -22,12 +22,12 @@ export default function TripHeader({
           <h1 className="h2 mb-0 text-white">New Trip</h1>
         </div>
         : <div className="d-flex align-items-center gap-2">
-          <h1 className="h2 trip-name">{trip.name || "Untitled trip"}</h1>
+          <h1 className="h2 mt-3 trip-name">{trip.loading ? "" : trip.name || "Untitled trip"}</h1>
         </div>}
 
         {(!isEdit && !isDraft) && <div className="text-secondary small">
-          <p className="m-0 trip-description">{trip.trip_type && `${tripTypeLabel(trip.trip_type)}`} • {trip.days} day{trip.days > 1 ? "s" : ""}</p>
-          <p className="m-0 trip-description">Let's pack! Mark the items in this list as you pack them.</p>
+          <p className="m-0 trip-description">{trip.loading ? "Loading..." : trip.trip_type && `${tripTypeLabel(trip.trip_type)} • ${trip.days} day${trip.days > 1 ? "s" : ""}`}</p>
+          <p className="m-0 trip-description">{!trip.loading ? "Let's pack! Mark the items in this list as you pack them." : ""}</p>
         </div>}
       </div>
 

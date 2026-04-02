@@ -37,12 +37,12 @@ export default function Trip({ mode = "view" }) {
   const isEdit = mode === "edit";
   const isEditLike = isDraft || isEdit;
 
-  const [trip, setTrip] = useState({
-    name: "New Trip",
+  const [trip, setTrip] = useState(isDraft ? {
+    name: "",
     trip_type: "general",
     days: 1,
     tags: [],
-  });
+  } : {loading: true});
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [generating, setGenerating] = useState(false);
