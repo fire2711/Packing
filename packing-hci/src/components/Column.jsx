@@ -1,5 +1,5 @@
 import { useDroppable } from "@dnd-kit/react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Item from "./Item";
 import { CollisionPriority } from "@dnd-kit/abstract";
 
@@ -16,7 +16,11 @@ export const Column = ({
   dragging,
   columnSizes,
   columnRef,
+  suggestions,
 }) => {
+  const [leftSuggestions, setLeftSuggestions] = useState([]);
+  const [rightSuggestions, setRightSuggestions] = useState([]);
+
   const {ref, isDropTarget} = useDroppable({
     id: side,
     accept: ["item", "container"],
@@ -24,9 +28,34 @@ export const Column = ({
     collisionPriority: CollisionPriority.Lowest,
   });
 
+  // Splits suggestions into two columns of 5 items, prioritizing generated suggestions for the left column and learned suggestions for the right column
+  useEffect(() => {
+    const generated = suggestions?.generated;
+    const learned = suggestions?.learned;
+
+    if (!generated) return;
+    if (generated.length < 5) {
+      setLeftSuggestions([...generated.slice(0, generated.length), ...learned.slice(0, 5 - generated.length)]);
+    } else {
+      setLeftSuggestions(generated.slice(0, 5));
+    }
+    if (!learned) setRightSuggestions(generated.slice(5, 10));
+    else {
+      if (generated.length < 5) {
+        setRightSuggestions(learned.slice(5 - generated.length, 10 - generated.length));
+      } else {
+        if (learned.length < 5) {
+          setRightSuggestions([...generated.slice(5, 10 - learned.length), ...learned.slice(0, 5)]);
+        } else {
+          setRightSuggestions(learned.slice(0, 5));
+        }
+      }
+    }
+  }, [suggestions]);
+
   return (
     <div ref={ref} className={`col checklist ${dragging ? "checklist-dragging" : ""} checklist-${side}`}>
-      <div ref={columnRef} className="checklist-items">
+      <div ref={columnRef} className={`checklist-items ${dragging ? "checklist-items-dragging" : ""}`}>
         {children?.map((item, index) =>
           <Item
             key={item.id}
@@ -44,15 +73,31 @@ export const Column = ({
           />
         )}
       </div>
-      {isEditLike && <div className={`row gx-0 checklist-buttons ${
-        ((columnSizes.left == columnSizes.right && side == "left") || columnSizes[side] < columnSizes[side == "right" ? "left" : "right"]) ? "" : "checklist-buttons-hidden"
-      }`}>
-        <div className="col-6 pe-1 checklist-button">
-          <button onClick={() => onAddItem(false, side)} className="col-12 btn btn-outline-primary btn-sm">Add Item</button>
+      {isEditLike && <div className="checklist-buttons">
+        <div className={`row gx-0 checklist-add-buttons ${
+          ((columnSizes.left == columnSizes.right && side == "left") || columnSizes[side] < columnSizes[side == "right" ? "left" : "right"]) ? "" : "checklist-add-buttons-hidden"
+        }`}>
+          <div className="col-6 pe-1">
+            <button onClick={() => onAddItem(false, side)} className="col-12 btn btn-outline-primary btn-sm checklist-button">Add Item</button>
+          </div>
+          <div className="col-6 ps-1 pe-0">
+            <button onClick={() => onAddItem(true, side)} className="col-12 btn btn-outline-primary btn-sm checklist-button">Add Container</button>
+          </div>
         </div>
-        <div className="col-6 ps-1 pe-0 checklist-button">
-          <button onClick={() => onAddItem(true, side)} className="col-12 btn btn-outline-primary btn-sm">Add Container</button>
-        </div>
+        {(side == "left" ? leftSuggestions : rightSuggestions).map(suggestion => <div key={suggestion.id} className="col-12">
+          <button
+            className="col-12 btn btn-outline-primary btn-sm checklist-button suggestion-button"
+            onClick={
+              () => onAddItem(suggestion.category == "Container", side, false, suggestion)
+            }
+          >
+            <p className="m-0 ms-1 p-0 suggestion-icon">+</p>
+            <p className="m-0 me-1 p-0">
+              {suggestion.name} {suggestion.learned ? (
+                <span className="ms-1 badge text-bg-light">Past trip</span>
+              ) : null}</p>
+          </button>
+        </div>)}  
       </div>}
     </div>
   )

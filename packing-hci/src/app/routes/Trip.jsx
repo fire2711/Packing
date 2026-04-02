@@ -105,6 +105,9 @@ export default function Trip({ mode = "view" }) {
     }
 
     try {
+      const learnedCategories = {};
+      const learnedSizes = {};
+
       const allTrips = await fetchTrips();
 
       const similarTrips = allTrips.filter((t) => {
@@ -119,7 +122,12 @@ export default function Trip({ mode = "view" }) {
         const tripItems = await fetchListItems(t.id);
 
         const uniqueTripNames = new Set(
-          tripItems.map((item) => normalizeName(item.name)).filter(Boolean)
+          tripItems.map((item) => {
+            const name = normalizeName(item.name);
+            learnedCategories[name] = {...learnedCategories[name], [item.category]: (learnedCategories[name]?.[item.category] || 0) + 1};
+            learnedSizes[name] = {...learnedSizes[name], [item.size]: (learnedSizes[name]?.[item.size] || 0) + 1};
+            return name;
+          }).filter(Boolean)
         );
 
         for (const name of uniqueTripNames) {
@@ -129,8 +137,12 @@ export default function Trip({ mode = "view" }) {
 
       const topNames = Object.entries(counts)
         .sort((a, b) => b[1] - a[1])
-        .slice(0, 8)
-        .map(([name]) => name);
+        .slice(0, 15)
+        .map(([name]) => {return {
+          name: name,
+          category: Object.entries(learnedCategories[name]).sort((a, b) => b[1] - a[1])[0][0],
+          size: Object.entries(learnedSizes[name]).sort((a, b) => b[1] - a[1])[0][0],
+        }});
 
       setLearnedNames(topNames);
     } catch {
@@ -182,11 +194,15 @@ export default function Trip({ mode = "view" }) {
       trip_type: trip.trip_type,
       days: trip.days,
       tags: Array.isArray(trip.tags) ? trip.tags : [],
-      frequentNames: learnedNames,
+      frequent: learnedNames,
     });
 
     const existing = new Set(Object.values(items).flat().map((i) => normalizeName(i.name)));
-    return generated.filter((s) => !existing.has(normalizeName(s.name)));
+    const all = generated.filter((s) => !existing.has(normalizeName(s.name)));
+    return {
+      "learned": all.filter(s => s.learned),
+      "generated": all.filter(s => !s.learned),
+    }
   }, [trip, items, isEditLike, learnedNames]);
 
   function toggleTag(tagId) {
@@ -216,14 +232,14 @@ export default function Trip({ mode = "view" }) {
     }
   }
 
-  async function onAddItem(isContainer, column, addToContainer) {
+  async function onAddItem(isContainer, column, addToContainer, info) {
     setFocusOnNewItems(true);
     const newItem = {
       id: tmpId(),
       draft: true,
-      name: "",
-      category: isContainer ? "Container" : "General",
-      size: "medium",
+      name: info?.name || "",
+      category: isContainer ? "Container" : info?.category || "General",
+      size: info?.size || "medium",
       packed: false,
       container_id: addToContainer ? column.split("%")[0] : null,
       column: column,
@@ -489,7 +505,7 @@ export default function Trip({ mode = "view" }) {
   }
 
   useEffect(() => {
-    console.log(items);
+    
   });
 
   const [test, setTest] = useState("");
@@ -589,6 +605,7 @@ export default function Trip({ mode = "view" }) {
                   dragging={dragging}
                   columnSizes={columnSizes}
                   columnRef={side == "left" ? leftColumnRef : rightColumnRef}
+                  suggestions={suggestions}
                 />
               </div>)}
             </div>

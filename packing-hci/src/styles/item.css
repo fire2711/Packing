@@ -224,6 +224,10 @@
   gap: 50px;
 }
 
+.checklist-items-dragging {
+  gap: 50px;
+}
+
 .container-list-add-item {
   border: dashed rgba(255, 255, 255, 0.7);
   color: white;
@@ -239,18 +243,34 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-10px); }
+  from { opacity: 0; margin-top: -42px; }
   to { opacity: 1; }
 }
 
 .checklist-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.checklist-add-buttons {
+  height: 32px;
   animation: fadeIn 0.2s ease;
   transition: opacity 0.2s ease, display 0.2s ease allow-discrete, margin-top 0.2s ease;
 }
 
-.checklist-buttons-hidden {
-  display: none;
+.checklist-add-buttons-hidden {
   opacity: 0;
-  margin-top: -45px;
-  z-index: -1;
+  display: none;
+  margin-top: -42px;
+}
+
+.suggestion-button {
+  display: flex;
+  justify-content: left;
+}
+
+.suggestion-icon {
+  width: 1em;
+  text-align: left;
 }
