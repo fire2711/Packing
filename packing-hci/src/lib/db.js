@@ -82,7 +82,7 @@ export async function fetchListItems(tripId) {
     ...listItem.container,
     category: "Container",
     listItemId: listItem.id,
-  }).sort((a, b) => a.index + (a.container_id ? 1000 : 0) - b.index);
+  }).sort((a, b) => a.index - b.index);
 }
 
 export async function addItem(tripId, item) {
@@ -100,6 +100,7 @@ export async function addItem(tripId, item) {
       packed: !!item.packed,
       container_id: item.container_id,
       index: item.index,
+      column: item.column,
     })
     .select("*")
     .single();
@@ -121,6 +122,7 @@ export async function addContainer(tripId, item) {
       size: item.size,
       packed: !!item.packed,
       index: item.index,
+      column: item.column,
     })
     .select("*")
     .single();
@@ -187,9 +189,18 @@ export async function deleteListItem(itemId) {
   if (error) throw error;
 }
 
-export async function resetTripPacked(tripId) {
+export async function resetTripItemsPacked(tripId) {
   const { error } = await supabase
     .from("items")
+    .update({ packed: false, updated_at: new Date().toISOString() })
+    .eq("trip_id", tripId);
+
+  if (error) throw error;
+}
+
+export async function resetTripContainersPacked(tripId) {
+  const { error } = await supabase
+    .from("containers")
     .update({ packed: false, updated_at: new Date().toISOString() })
     .eq("trip_id", tripId);
 

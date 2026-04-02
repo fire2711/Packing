@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { deleteTrip, fetchListItems, fetchTrips, resetTripPacked } from "../../lib/db";
+import { deleteTrip, fetchListItems, fetchTrips, resetTripItemsPacked } from "../../lib/db";
 
 const PINNED_STORAGE_KEY = "packright:pinnedTrips";
 
@@ -231,7 +231,7 @@ export default function Dashboard() {
     setOpenMenuId(null);
 
     try {
-      await resetTripPacked(tripId);
+      await resetTripItemsPacked(tripId);
 
       setTripStats((prev) => {
         const current = prev[tripId] || { total: 0, packed: 0, percent: 0 };

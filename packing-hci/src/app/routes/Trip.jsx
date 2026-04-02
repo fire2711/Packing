@@ -1,6 +1,6 @@
 // src/app/routes/Trip.jsx
 
-import React, { act, useEffect, useMemo, useState } from "react";
+import React, { act, useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { DragDropProvider } from "@dnd-kit/react";
 import { move } from "@dnd-kit/helpers";
@@ -11,7 +11,8 @@ import {
   fetchListItems,
   fetchTrip,
   fetchTrips,
-  resetTripPacked,
+  resetTripItemsPacked,
+  resetTripContainersPacked,
   updateItem,
   updateTrip,
   addListItem,
@@ -26,7 +27,7 @@ import TripHeader from "../../components/trip/TripHeader";
 import TripProgressCard from "../../components/trip/TripProgressCard";
 import TripDetailsCard from "../../components/trip/TripDetailsCard";
 import TripSuggestionsCard from "../../components/trip/TripSuggestionsCard";
-import Item from "../../components/Item";
+import { Column } from "../../components/Column";
 
 export default function Trip({ mode = "view" }) {
   const { tripId } = useParams();
@@ -43,6 +44,8 @@ export default function Trip({ mode = "view" }) {
   const [generating, setGenerating] = useState(false);
   const [learnedNames, setLearnedNames] = useState([]);
   const [focusOnNewItems, setFocusOnNewItems] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [columnSizes, setColumnSizes] = useState({ left: 0, right: 0 });
 
   const [draftTrip, setDraftTrip] = useState({
     name: "New Trip",
@@ -56,6 +59,10 @@ export default function Trip({ mode = "view" }) {
 
   const activeTrip = isDraft ? draftTrip : trip;
   const activeItems = isDraft ? draftItems : items;
+  const [splitItems, setSplitItems] = useState({ left: [], right: [] });
+
+  const leftColumnRef = useRef(null);
+  const rightColumnRef = useRef(null);
 
   async function loadTripAndItems() {
     if (isDraft) return;
@@ -67,7 +74,11 @@ export default function Trip({ mode = "view" }) {
 
       const its = await fetchListItems(tripId);
       setTrip(t);
-      setItems(its);
+      const newItems = {};
+      its.forEach(it => {
+        newItems[it.column] = its.filter(item => item.column == it.column);
+      });
+      setSplitItems(newItems);
     } catch (e) {
       setErr(safeMsg(e, "Failed to load trip"));
     }
@@ -78,7 +89,11 @@ export default function Trip({ mode = "view" }) {
 
     try {
       const its = await fetchListItems(tripId);
-      setItems(its);
+      const newItems = {};
+      its.forEach(it => {
+        newItems[it.column] = its.filter(item => item.column == it.column);
+      });
+      setSplitItems(newItems);
     } catch {
       // ignore
     }
@@ -134,17 +149,29 @@ export default function Trip({ mode = "view" }) {
   }, [activeTrip?.trip_type, isEditLike, tripId]);
 
   const stats = useMemo(() => {
-    const total = activeItems.length;
-    const packed = activeItems.filter((i) => !!i.packed).length;
+    const total = Object.values(splitItems).flat().length;
+    const packed = Object.values(splitItems).flat().filter((i) => !!i.packed).length;
     return { total, packed, percent: pct(packed, total) };
-  }, [activeItems]);
+  }, [splitItems]);
 
-  const sortedItems = useMemo(() => {
+  /*const sortedItems = useMemo(() => {
     return [...activeItems].sort((a, b) => {
       if (Number(a.packed) !== Number(b.packed)) return Number(a.packed) - Number(b.packed);
       return (a.name || "").localeCompare(b.name || "");
     });
-  }, [activeItems]);
+  }, [activeItems]);*/
+
+  useEffect(() => {
+    const leftResizeObserver = new ResizeObserver(() => {
+      setColumnSizes(s => ({...s, left: leftColumnRef.current?.offsetHeight || 0}));
+    });
+    const rightResizeObserver = new ResizeObserver(() => {
+      setColumnSizes(s => ({...s, right: rightColumnRef.current?.offsetHeight || 0}));
+    });
+    
+    if (leftColumnRef.current) leftResizeObserver.observe(leftColumnRef.current);
+    if (rightColumnRef.current) rightResizeObserver.observe(rightColumnRef.current);
+  }, [leftColumnRef.current, rightColumnRef.current]);
 
   const suggestions = useMemo(() => {
     if (!activeTrip || !isEditLike) return [];
@@ -187,7 +214,7 @@ export default function Trip({ mode = "view" }) {
 
     if (isDraft) {
       setDraftItems((prev) =>
-        prev.map((x) => (x._tmpId === item._tmpId ? { ...x, packed: nextPacked } : x))
+        prev.map((x) => (x.id === item.id ? { ...x, packed: nextPacked } : x))
       );
       return;
     }
@@ -202,19 +229,19 @@ export default function Trip({ mode = "view" }) {
     }
   }
 
-  async function onAddItem(isContainer, container_id) {
+  async function onAddItem(isContainer, column, addToContainer) {
     setFocusOnNewItems(true);
-    if (isDraft) {
-      setDraftItems((prev) => [
-        ...prev,
-        { draft: true, index: activeItems.length + (container_id ? 1000 : 0), _tmpId: tmpId(), name: "", category: isContainer ? "Container" : "General", size: "medium", packed: false, container_id: container_id, },
-      ]);
-    } else {
-      setItems((prev) => [
-        ...prev,
-        { draft: true, index: activeItems.length + (container_id ? 1000 : 0), id: tmpId(), name: "", category: isContainer ? "Container" : "General", size: "medium", packed: false, container_id: container_id, },
-      ]);
-    }
+    const newItem = {
+      id: tmpId(),
+      draft: true,
+      name: "",
+      category: isContainer ? "Container" : "General",
+      size: "medium",
+      packed: false,
+      container_id: addToContainer ? column.split("%")[0] : null,
+      column: column,
+    };
+    setSplitItems(prev => ({...prev, [column]: prev[column] ? [...prev[column], newItem] : [newItem]}));
   }
 
   function addDeletedItem(item_id) {
@@ -230,7 +257,7 @@ export default function Trip({ mode = "view" }) {
 
       setDraftItems((prev) => [
         ...prev,
-        { _tmpId: tmpId(), name: s.name, packed: false },
+        { id: tmpId(), name: s.name, packed: false },
       ]);
       return;
     }
@@ -258,7 +285,7 @@ export default function Trip({ mode = "view" }) {
         const toAdd = suggestions
           .filter((s) => !existing.has(normalizeName(s.name)))
           .map((s) => ({
-            _tmpId: tmpId(),
+            id: tmpId(),
             name: s.name,
             packed: false,
           }));
@@ -289,16 +316,12 @@ export default function Trip({ mode = "view" }) {
     const ok = window.confirm("Reset checked items for this trip? (Items will stay.)");
     if (!ok) return;
 
-    if (isDraft) {
-      setDraftItems((prev) => prev.map((x) => ({ ...x, packed: false })));
-      return;
-    }
-
     setBusy(true);
     setErr("");
 
     try {
-      await resetTripPacked(tripId);
+      await resetTripItemsPacked(tripId);
+      await resetTripContainersPacked(tripId);
       await refreshItems();
     } catch (e) {
       setErr(safeMsg(e, "Failed to reset checkmarks"));
@@ -345,25 +368,46 @@ export default function Trip({ mode = "view" }) {
       const t = await createTrip({
         name: (draftTrip.name || "New Trip").trim() || "New Trip",
         trip_type: draftTrip.trip_type,
-        days: Number(draftTrip.days) || 3,
+        days: Number(draftTrip.days) || 1,
         tags: Array.isArray(draftTrip.tags) ? draftTrip.tags : [],
       });
 
       const trueIds = {}
+      const normalItems = [...splitItems.left, ...splitItems.right];
 
-      for (const [index, it] of draftItems.filter(item => item.category == "Container").entries()) {
-        const data = await addContainer(t.id, { name: it.name, size: it.size, packed: !!it.packed, index: items.indexOf(it) });
-        trueIds[it._tmpId] = data.id;
+      for (const it of normalItems.filter(item => item.category == "Container")) {
+        const data = await addContainer(t.id, { name: it.name, size: it.size, packed: !!it.packed, index: normalItems.indexOf(it), column: splitItems.left.includes(it) ? "left" : "right" });
+        trueIds[it.id] = data.id;
+        trueIds[it.id + "%list"] = data.id + "%list";
         it.id = data.id;
         await addListItem(t.id, data.id, true);
       }
 
-      for (const [index, it] of draftItems.filter(item => item.category != "Container").entries()) {
-        if (it.container_id) it.container_id = trueIds[it.container_id];
-        const data = await addItem(t.id, { name: it.name, size: it.size, category: it.category, packed: !!it.packed, container_id: it.container_id, index: items.indexOf(it) + (it.container_id ? 1000 : 0) });
-        it.id = data.id;
-        await addListItem(t.id, data.id, false);
+      for (const [column, group] of Object.entries(splitItems)) {
+        for (const [i, it] of group.entries()) {
+          if (it.category == "Container") continue;
+          if (it.container_id) {
+            it.container_id = trueIds[it.container_id];
+            it.column = trueIds[it.column];
+          }
+          const data = await addItem(t.id, { name: it.name, size: it.size, category: it.category, packed: !!it.packed, container_id: it.container_id, index: normalItems.includes(it) ? normalItems.indexOf(it) : i, column: trueIds[column] });
+          it.id = data.id;
+          await addListItem(t.id, data.id, false);
+        }
       }
+
+      setSplitItems(items => {
+        const newItems = items;
+        for (const [column, group] of Object.entries(splitItems)) {
+          if (column == "left" && column == "right") {
+            newItems[column] = group;
+          } else {
+            newItems[trueIds[column]] = group;
+          }
+        }
+        return newItems;
+      });
+
       setDeletedItems([]);
 
       nav(`/trip/${t.id}`);
@@ -381,30 +425,40 @@ export default function Trip({ mode = "view" }) {
     try {
       const trueIds = {}
 
-      for (const [index, it] of items.filter(item => item.category == "Container").entries()) {
+      const normalItems = [...splitItems.left, ...splitItems.right];
+
+      for (const it of normalItems.filter(item => item.category == "Container")) {
         if (it.draft) {
-          const data = await addContainer(tripId, { name: it.name, size: it.size, packed: !!it.packed, index: items.indexOf(it) });
+          const data = await addContainer(tripId, { name: it.name, size: it.size, packed: !!it.packed, index: normalItems.indexOf(it), column: splitItems.left.includes(it) ? "left" : "right" });
           trueIds[it.id] = data.id;
+          trueIds[it.id + "%list"] = data.id + "%list";
           const listItemData = await addListItem(tripId, data.id, true);
           it.draft = false;
           it.id = data.id;
           it.listItemId = listItemData.listItemId;
         } else {
           trueIds[it.id] = it.id;
-          await updateContainer(it.id, {name: it.name, size: it.size, index: items.indexOf(it)});
+          trueIds[it.id + "%list"] = it.id + "%list";
+          await updateContainer(it.id, { name: it.name, size: it.size, index: normalItems.indexOf(it), column: splitItems.left.includes(it) ? "left" : "right" });
         }
       }
 
-      for (const [index, it] of items.filter(item => item.category != "Container").entries()) {
-        if (it.container_id) it.container_id = trueIds[it.container_id];
-        if (it.draft) {
-          const data = await addItem(tripId, { name: it.name, size: it.size, category: it.category, packed: !!it.packed, container_id: it.container_id, index: items.indexOf(it) + (it.container_id ? 1000 : 0) });
-          const listItemData = await addListItem(tripId, data.id, false);
-          it.draft = false;
-          it.id = data.id;
-          it.listItemId = listItemData.listItemId;
-        } else {
-          await updateItem(it.id, {name: it.name, size: it.size, category: it.category, container_id: it.container_id, index: items.indexOf(it) + (it.container_id ? 1000 : 0)});
+      for (const [column, group] of Object.entries(splitItems)) {
+        for (const [i, it] of group.entries()) {
+          if (it.category == "Container") continue;
+          if (it.container_id) {
+            it.container_id = trueIds[it.container_id];
+            it.column = trueIds[it.column];
+          }
+          if (it.draft) {
+            const data = await addItem(tripId, { name: it.name, size: it.size, category: it.category, packed: !!it.packed, container_id: it.container_id, index: normalItems.includes(it) ? normalItems.indexOf(it) : i, column: trueIds[column] });
+            const listItemData = await addListItem(tripId, data.id, false);
+            it.draft = false;
+            it.id = data.id;
+            it.listItemId = listItemData.listItemId;
+          } else {
+            await updateItem(it.id, { name: it.name, size: it.size, category: it.category, container_id: it.container_id, index: normalItems.includes(it) ? normalItems.indexOf(it) : i, column: trueIds[column] });
+          }
         }
       }
 
@@ -415,6 +469,18 @@ export default function Trip({ mode = "view" }) {
       }
       setDeletedItems([]);
 
+      setSplitItems(items => {
+        const newItems = items;
+        for (const [column, group] of Object.entries(splitItems)) {
+          if (column == "left" && column == "right") {
+            newItems[column] = group;
+          } else {
+            newItems[trueIds[column]] = group;
+          }
+        }
+        return newItems;
+      });
+
       nav(`/trip/${tripId}`);
     } catch (e) {
       setErr(safeMsg(e, "Failed to edit trip"));
@@ -423,7 +489,11 @@ export default function Trip({ mode = "view" }) {
     }
   }
 
-  useEffect(() => {console.log(activeItems)})
+  useEffect(() => {
+    console.log(splitItems);
+  });
+
+  const [test, setTest] = useState("");
 
   if (!activeTrip) {
     return (
@@ -437,36 +507,18 @@ export default function Trip({ mode = "view" }) {
 
   return (
     <DragDropProvider
+      onDragStart={() => {
+        setDragging(true);
+      }}
+      onDragOver={(event) => {
+        event.preventDefault();
+        setSplitItems(items => move(items, event));
+      }}
       onDragEnd={(event) => {
-        if (event.canceled) return;
-        const {source, target} = event.operation;
-        if (source?.id && target?.id) {
-          const targetId = target.id.split("%")[0];
-          const targetType = target.id.split("%")[1];
-          const sourceId = source.id.split("%")[0];
-          const sourceType = source.id.split("%")[1];
-          if (targetType == "drop" && sourceType == "item") {
-            if (isDraft) setDraftItems(
-              prev => prev.map(
-                item => item._tmpId == sourceId ? {
-                  ...item, container_id: targetId, index: item.index + 1000,
-                } : item
-              )
-            );
-            else setItems(
-              prev => prev.map(
-                item => item.id == sourceId ? {
-                  ...item, container_id: targetId, index: item.index + 1000,
-                } : item
-              )
-            );
-          }
-        }
-        const setActiveItems = isDraft ? setDraftItems : setItems;
-        setActiveItems(items => [...move(items.filter(item => !item.container_id), event), ...items.filter(item => item.container_id)]);
+        setDragging(false);
     }}
     >
-      <div className="container py-4">
+      <div className="container py-4 trip">
         <TripHeader
           activeTrip={activeTrip}
           stats={stats}
@@ -479,6 +531,7 @@ export default function Trip({ mode = "view" }) {
           onCancelDraft={onCancelDraft}
           onConfirmDraft={onConfirmDraft}
           onConfirmEdit={onConfirmEdit}
+          refreshItems={refreshItems}
         />
 
         {err ? <div className="alert alert-danger">{err}</div> : null}
@@ -510,37 +563,31 @@ export default function Trip({ mode = "view" }) {
         ) : null}
 
         <div className="card card-modern">
+          <h1>{test}</h1>
           <div className="card-body">
             <div className="d-flex justify-content-between align-items-center mb-3">
               <div className="fw-semibold fs-5">Checklist</div>
-              <span className="badge text-bg-secondary">{sortedItems.length}</span>
+              <span className="badge text-bg-secondary">{Object.values(splitItems).flat().length}</span>
             </div>
 
-            <div className="col checklist">
-              {activeItems.filter(item => !item.container_id).map((item, index) =>
-                <Item
-                  key={`${isDraft ? item._tmpId : item.id}%${item.category == "Container" ? "container" : "item"}`}
-                  item={item}
-                  setDraftItems={setDraftItems}
-                  listItems={item.category == "Container" ? activeItems.filter(other => other.container_id == (isDraft ? item._tmpId : item.id)) : null}
+            <div className="checklist-columns">
+              {["left", "right"].map(side => <div className="column-space">
+                <Column
+                  key={side}
                   onAddItem={onAddItem}
                   isEditLike={isEditLike}
                   isDraft={isDraft}
-                  setItems={setItems}
+                  splitItems={splitItems}
+                  setSplitItems={setSplitItems}
                   addDeletedItem={addDeletedItem}
                   focusOnNewItems={focusOnNewItems}
-                  index={index}
-                  group="column1"
+                  side={side}
+                  children={splitItems[side]}
+                  dragging={dragging}
+                  columnSizes={columnSizes}
+                  columnRef={side == "left" ? leftColumnRef : rightColumnRef}
                 />
-              )}
-              {isEditLike && <div className="row gx-0">
-                <div className="col-6 pe-1">
-                  <button onClick={() => onAddItem(false)} className="col-12 btn btn-outline-primary btn-sm">Add Item</button>
-                </div>
-                <div className="col-6 ps-1 pe-0">
-                  <button onClick={() => onAddItem(true)} className="col-12 btn btn-outline-primary btn-sm">Add Container</button>
-                </div>
-              </div>}
+              </div>)}
             </div>
           </div>
         </div>

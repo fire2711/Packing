@@ -5,12 +5,12 @@ import { itemCategories } from '../app/routes/itemCategories';
 import { useRef, useEffect, useState } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/react';
 import { useSortable } from '@dnd-kit/react/sortable';
+import { updateContainer, updateItem } from '../lib/db';
 import { CollisionPriority } from "@dnd-kit/abstract";
 
 const Item = ({
   item,
-  setDraftItems,
-  setItems,
+  setSplitItems,
   listItems,
   onAddItem,
   isEditLike,
@@ -22,26 +22,29 @@ const Item = ({
 }) => {
   const nameInputRef = useRef(null);
   const isContainer = item.category == "Container";
-  const { ref, handleRef } = group == "column1" ? useSortable({
-    id: `${isDraft ? item._tmpId : item.id}%${isContainer ? "container" : "item"}`,
+  const { ref, handleRef } = useSortable({
+    id: item.id,
     index: index,
     group: group,
-    collisionPriority: group == "column1" ? CollisionPriority.Low : CollisionPriority.High,
-  }): {ref: null, handleRef: null};
-  const { ref: dropLocation, isDropTarget: dropOver } = useDroppable({id: isDraft ? item._tmpId + "%drop" : item.id + "%drop"});
+    type: isContainer ? "container" : "item",
+    accept: "item",
+  });
+  const { ref: dropLocation, isDropTarget: dropOver } = useDroppable({id: item.id + "%drop"});
+  const { ref: listRef } = useDroppable({
+    id: item.id + "%list",
+    accept: "item",
+    type: "containerList",
+    collisionPriority: CollisionPriority.Medium,
+  });
 
   const setActiveItem = (field, value) => {
-    if (isDraft) {
-      setDraftItems(prev => prev.map(x => x._tmpId === item._tmpId ? (() => {
+    setSplitItems(prev => {
+      const column = prev[group].map(x => x.id === item.id ? (() => {
         x[field] = value;
         return x;
-      })() : x));
-    } else {
-      setItems(prev => prev.map(x => x.id === item.id ? (() => {
-        x[field] = value;
-        return x;
-      })() : x));
-    }
+      })() : x);
+      return {...prev, [group]: column};
+    })
   }
 
   const changeItemCategory = (e) => {
@@ -58,17 +61,30 @@ const Item = ({
 
   const deleteItem = () => {
     if (item.listItemId) addDeletedItem(item);
-    if (isContainer) listItems.forEach(listItem => listItem.listItemId ? addDeletedItem(listItem) : null);
-    if (isDraft) setDraftItems((prev) => prev.filter((x) => x._tmpId !== item._tmpId && x.container_id !== item._tmpId));
-    else setItems((prev) => prev.filter((x) => x.id !== item.id && x.container_id !== item.id));
+    if (isContainer) listItems?.forEach(listItem => listItem.listItemId ? addDeletedItem(listItem) : null);
+    setSplitItems(prev => {
+      const column = prev[group].filter(x => x.id !== item.id);
+      return {...prev, [group]: column};
+    })
   };
 
   const onItemClick = () => {
     if (isContainer) {
-      listItems.forEach(listItem => listItem.packed = !item.packed);
-    }
-    if (item.container_id && item.packed) {
-      setItems(prev => prev.map(x => x.id == item.container_id ? {...x, packed: false} : x));
+      listItems.forEach(listItem => {
+        listItem.packed = !item.packed;
+        updateItem(listItem.id, { packed: !item.packed });
+      });
+      updateContainer(item.id, { packed: !item.packed });
+    } else {
+      updateItem(item.id, { packed: !item.packed });
+      if (item.container_id && item.packed) {
+        setSplitItems(prev => {return {
+          ...prev,
+          left: prev.left.map(x => x.id == item.container_id ? {...x, packed: false} : x),
+          right: prev.right.map(x => x.id == item.container_id ? {...x, packed: false} : x),
+        }});
+        updateContainer(item.container_id, { packed: false });
+      }
     }
     setActiveItem("packed", !item.packed);
   }
@@ -120,17 +136,20 @@ const Item = ({
           </div>}
         </div>
       </div>
-      {(isContainer && (isEditLike || listItems.length > 0)) && <div className="container-list">
-        {listItems.sort((a, b) => a.index - b.index).map((listItem, i) => <Item
+      {(isContainer && (isEditLike || listItems?.length > 0)) && <div
+        ref={listRef}
+        key={item.id + "%list"}
+        className="container-list"
+      >
+        {listItems?.map((listItem, i) => <Item
           item={listItem}
-          setDraftItems={setDraftItems}
+          setSplitItems={setSplitItems}
           isEditLike={isEditLike}
-          key={`${isDraft ? listItem._tmpId : listItem.id}%item`}
+          key={`${listItem.id}%item`}
           isDraft={isDraft}
-          setItems={setItems}
           addDeletedItem={addDeletedItem}
           focusOnNewItems={focusOnNewItems}
-          group={`list-for-${isDraft ? item._tmpId : item.id}`}
+          group={item.id + "%list"}
           index={i}
         />)}
         {isEditLike &&
@@ -142,7 +161,7 @@ const Item = ({
             }`
           }
           onClick={
-            () => onAddItem(false, isDraft ? item._tmpId : item.id)
+            () => onAddItem(false, item.id + "%list", true)
           }
         >
           Add Item

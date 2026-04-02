@@ -13,6 +13,7 @@ export default function TripHeader({
   onCancelDraft,
   onConfirmDraft,
   onConfirmEdit,
+  refreshItems,
 }) {
   return (
     <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-1">
@@ -56,7 +57,10 @@ export default function TripHeader({
           <>
             <button
               className="btn btn-outline-secondary btn-modern-outline"
-              onClick={() => nav(isEdit ? `/trip/${tripId}` : "/")}
+              onClick={async () => {
+                await refreshItems();
+                nav(isEdit ? `/trip/${tripId}` : "/");
+              }}
             >
               Back
             </button>
