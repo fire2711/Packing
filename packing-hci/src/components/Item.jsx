@@ -19,6 +19,7 @@ const Item = ({
   focusOnNewItems,
   index,
   group,
+  dragging,
 }) => {
   const nameInputRef = useRef(null);
   const isContainer = item.category == "Container";
@@ -33,7 +34,7 @@ const Item = ({
     id: item.id + "%list",
     accept: "item",
     type: "containerList",
-    collisionPriority: CollisionPriority.Medium,
+    collisionPriority: CollisionPriority.Highest,
   });
 
   const setActiveItem = (field, value) => {
@@ -138,7 +139,7 @@ const Item = ({
       {(isContainer && (isEditLike || listItems?.length > 0)) && <div
         ref={listRef}
         key={item.id + "%list"}
-        className="container-list"
+        className={`container-list ${(dragging && dragging != "Container") ? "container-list-dragging" : ""}`}
       >
         {listItems?.map((listItem, i) => <Item
           item={listItem}

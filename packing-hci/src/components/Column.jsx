@@ -21,7 +21,7 @@ export const Column = ({
     id: side,
     accept: ["item", "container"],
     type: "column",
-    collisionPriority: CollisionPriority.Low,
+    collisionPriority: CollisionPriority.Lowest,
   });
 
   return (
@@ -40,6 +40,7 @@ export const Column = ({
             focusOnNewItems={focusOnNewItems}
             index={index}
             group={side}
+            dragging={dragging}
           />
         )}
       </div>

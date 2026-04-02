@@ -521,8 +521,12 @@ export default function Trip({ mode = "view" }) {
 
   return (
     <DragDropProvider
-      onDragStart={() => {
-        setDragging(true);
+      onDragStart={(event) => {
+        const activeId = event?.operation?.source.id;
+
+        setDragging(activeId
+          ? Object.values(items).flat().find(i => i?.id === activeId)?.category
+          : null);
       }}
       onDragOver={(event) => {
         event.preventDefault();
