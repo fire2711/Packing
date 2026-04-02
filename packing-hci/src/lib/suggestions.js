@@ -173,9 +173,9 @@ export function buildSuggestions({ trip_type, days, tags = [], frequent = [] }) 
   || BASE_ITEMS_BY_TYPE.general.map(item => {return {...item, category: categoryOf(item.name)}});
 
   const out = [
-    ...buildQuantityItems(days),
+    ...buildQuantityItems(days).map(item => {return {...item, category: categoryOf(item.name)}}),
     ...base,
-    ...buildDurationExtras(days),
+    ...buildDurationExtras(days).map(item => {return {...item, category: categoryOf(item.name)}}),
   ];
 
   const tagList = Array.isArray(tags) ? tags : [];

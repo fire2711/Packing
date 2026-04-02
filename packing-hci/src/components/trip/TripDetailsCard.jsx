@@ -39,7 +39,7 @@ export default function TripDetailsCard({ trip, setTrip, toggleTag }) {
                 min={1}
                 max={60}
                 value={trip.days}
-                onChange={(e) => setTrip((prev) => ({ ...prev, days: Number(e.target.value) || 1 }))}
+                onChange={(e) => setTrip((prev) => ({ ...prev, days: e.target.value }))}
               />
             </div>
           </div>
