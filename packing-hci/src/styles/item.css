@@ -237,3 +237,20 @@
 .container-list-add-item:hover {
   background: rgba(255, 255, 255, 0.15);
 }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; }
+}
+
+.checklist-buttons {
+  animation: fadeIn 0.2s ease;
+  transition: opacity 0.2s ease, display 0.2s ease allow-discrete, margin-top 0.2s ease;
+}
+
+.checklist-buttons-hidden {
+  display: none;
+  opacity: 0;
+  margin-top: -45px;
+  z-index: -1;
+}

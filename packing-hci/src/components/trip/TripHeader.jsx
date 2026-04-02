@@ -2,7 +2,7 @@ import React from "react";
 import { tripTypeLabel } from "../../app/routes/tripUtils";
 
 export default function TripHeader({
-  activeTrip,
+  trip,
   stats,
   tagCount,
   isDraft,
@@ -16,18 +16,18 @@ export default function TripHeader({
   refreshItems,
 }) {
   return (
-    <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-1">
+    <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mt-3 mb-3">
       <div>
         {isDraft ? <div className="d-flex align-items-center gap-2">
           <h1 className="h2 mb-0 text-white">New Trip</h1>
         </div>
         : <div className="d-flex align-items-center gap-2">
-          <h1 className="h2 mb-0 trip-name">{activeTrip.name || "Untitled trip"}</h1>
+          <h1 className="h2 trip-name">{trip.name || "Untitled trip"}</h1>
         </div>}
 
-        {(!isEdit && !isDraft) && <div className="text-secondary small mt-1">
-          <p className="m-0">{activeTrip.trip_type && `${tripTypeLabel(activeTrip.trip_type)}`} • {activeTrip.days} day{activeTrip.days > 1 ? "s" : ""}</p>
-          <p className="m-0">Let's pack! Mark the items in this list as you pack them.</p>
+        {(!isEdit && !isDraft) && <div className="text-secondary small">
+          <p className="m-0 trip-description">{trip.trip_type && `${tripTypeLabel(trip.trip_type)}`} • {trip.days} day{trip.days > 1 ? "s" : ""}</p>
+          <p className="m-0 trip-description">Let's pack! Mark the items in this list as you pack them.</p>
         </div>}
       </div>
 

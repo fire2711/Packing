@@ -37,7 +37,12 @@ export default function Trip({ mode = "view" }) {
   const isEdit = mode === "edit";
   const isEditLike = isDraft || isEdit;
 
-  const [trip, setTrip] = useState(null);
+  const [trip, setTrip] = useState({
+    name: "New Trip",
+    trip_type: "general",
+    days: 1,
+    tags: [],
+  });
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -46,16 +51,7 @@ export default function Trip({ mode = "view" }) {
   const [dragging, setDragging] = useState(false);
   const [columnSizes, setColumnSizes] = useState({ left: 0, right: 0 });
 
-  const [draftTrip, setDraftTrip] = useState({
-    name: "New Trip",
-    trip_type: "general",
-    days: 1,
-    tags: [],
-  });
-
   const [deletedItems, setDeletedItems] = useState([]);
-
-  const activeTrip = isDraft ? draftTrip : trip;
   const [items, setItems] = useState({ left: [], right: [] });
 
   const leftColumnRef = useRef(null);
@@ -71,7 +67,7 @@ export default function Trip({ mode = "view" }) {
 
       const its = await fetchListItems(tripId);
       setTrip(t);
-      const newItems = {};
+      const newItems = { left: [], right: [] };
       its.forEach(it => {
         newItems[it.column] = its.filter(item => item.column == it.column);
         if (it.category == "Container" && !newItems[it.id + "%list"]) newItems[it.id + "%list"] = [];
@@ -86,8 +82,12 @@ export default function Trip({ mode = "view" }) {
     if (isDraft) return;
 
     try {
+      const t = await fetchTrip(tripId);
+      if (!t.tags) t.tags = [];
+
       const its = await fetchListItems(tripId);
-      const newItems = {};
+      setTrip(t);
+      const newItems = { left: [], right: [] };
       its.forEach(it => {
         newItems[it.column] = its.filter(item => item.column == it.column);
         if (it.category == "Container" && !newItems[it.id + "%list"]) newItems[it.id + "%list"] = [];
@@ -143,9 +143,9 @@ export default function Trip({ mode = "view" }) {
   }, [tripId, isDraft]);
 
   useEffect(() => {
-    if (!activeTrip || !isEditLike) return;
-    loadPastTripLearning(activeTrip);
-  }, [activeTrip?.trip_type, isEditLike, tripId]);
+    if (!trip || !isEditLike) return;
+    loadPastTripLearning(trip);
+  }, [trip?.trip_type, isEditLike, tripId]);
 
   const stats = useMemo(() => {
     const uniqueItems = [
@@ -163,13 +163,6 @@ export default function Trip({ mode = "view" }) {
     return { total, packed, percent: pct(packed, total) };
   }, [items]);
 
-  /*const sortedItems = useMemo(() => {
-    return [...items].sort((a, b) => {
-      if (Number(a.packed) !== Number(b.packed)) return Number(a.packed) - Number(b.packed);
-      return (a.name || "").localeCompare(b.name || "");
-    });
-  }, [items]);*/
-
   useEffect(() => {
     const leftResizeObserver = new ResizeObserver(() => {
       setColumnSizes(s => ({...s, left: leftColumnRef.current?.offsetHeight || 0}));
@@ -183,38 +176,23 @@ export default function Trip({ mode = "view" }) {
   }, [leftColumnRef.current, rightColumnRef.current]);
 
   const suggestions = useMemo(() => {
-    if (!activeTrip || !isEditLike) return [];
+    if (!trip || !isEditLike) return [];
 
     const generated = buildSuggestions({
-      trip_type: activeTrip.trip_type,
-      days: activeTrip.days,
-      tags: Array.isArray(activeTrip.tags) ? activeTrip.tags : [],
+      trip_type: trip.trip_type,
+      days: trip.days,
+      tags: Array.isArray(trip.tags) ? trip.tags : [],
       frequentNames: learnedNames,
     });
 
     const existing = new Set(Object.values(items).flat().map((i) => normalizeName(i.name)));
     return generated.filter((s) => !existing.has(normalizeName(s.name)));
-  }, [activeTrip, items, isEditLike, learnedNames]);
-
-  function patchActiveTrip(patch) {
-    if (isDraft) {
-      setDraftTrip((prev) => ({ ...prev, ...patch }));
-      return;
-    }
-
-    setErr("");
-    updateTrip(tripId, patch)
-      .then((t) => {
-        if (!t.tags) t.tags = [];
-        setTrip(t);
-      })
-      .catch((e) => setErr(safeMsg(e, "Failed to update trip")));
-  }
+  }, [trip, items, isEditLike, learnedNames]);
 
   function toggleTag(tagId) {
-    const curr = Array.isArray(activeTrip.tags) ? activeTrip.tags : [];
+    const curr = Array.isArray(trip.tags) ? trip.tags : [];
     const next = curr.includes(tagId) ? curr.filter((t) => t !== tagId) : [...curr, tagId];
-    patchActiveTrip({ tags: next });
+    setTrip((prev) => ({ ...prev, tags: next }));
   }
 
   async function onTogglePacked(item) {
@@ -290,7 +268,7 @@ export default function Trip({ mode = "view" }) {
   }
 
   async function onGenerateStarterList() {
-    if (!activeTrip || !isEditLike || suggestions.length === 0) return;
+    if (!trip || !isEditLike || suggestions.length === 0) return;
 
     setErr("");
     setGenerating(true);
@@ -382,10 +360,10 @@ export default function Trip({ mode = "view" }) {
 
     try {
       const t = await createTrip({
-        name: (draftTrip.name || "New Trip").trim() || "New Trip",
-        trip_type: draftTrip.trip_type,
-        days: Number(draftTrip.days) || 1,
-        tags: Array.isArray(draftTrip.tags) ? draftTrip.tags : [],
+        name: (trip.name || "New Trip").trim() || "New Trip",
+        trip_type: trip.trip_type,
+        days: Number(trip.days) || 1,
+        tags: Array.isArray(trip.tags) ? trip.tags : [],
       });
 
       const trueIds = {left: "left", right: "right"};
@@ -438,6 +416,13 @@ export default function Trip({ mode = "view" }) {
     setErr("");
 
     try {
+      await updateTrip(tripId, {
+        name: (trip.name || "New Trip").trim() || "New Trip",
+        trip_type: trip.trip_type,
+        days: Number(trip.days) || 1,
+        tags: Array.isArray(trip.tags) ? trip.tags : [],
+      });
+
       const trueIds = {left: "left", right: "right"};
 
       const normalItems = [...items.left, ...items.right];
@@ -509,7 +494,7 @@ export default function Trip({ mode = "view" }) {
 
   const [test, setTest] = useState("");
 
-  if (!activeTrip) {
+  if (!trip) {
     return (
       <div className="container py-4">
         <div className="text-secondary">{err || "Loading…"}</div>
@@ -517,7 +502,7 @@ export default function Trip({ mode = "view" }) {
     );
   }
 
-  const tagCount = Array.isArray(activeTrip.tags) ? activeTrip.tags.length : 0;
+  const tagCount = Array.isArray(trip.tags) ? trip.tags.length : 0;
 
   return (
     <DragDropProvider
@@ -538,7 +523,7 @@ export default function Trip({ mode = "view" }) {
     >
       <div className="container py-4 trip">
         <TripHeader
-          activeTrip={activeTrip}
+          trip={trip}
           stats={stats}
           tagCount={tagCount}
           isDraft={isDraft}
@@ -565,8 +550,8 @@ export default function Trip({ mode = "view" }) {
         {isEditLike ? (
           <>
             <TripDetailsCard
-              activeTrip={activeTrip}
-              patchActiveTrip={patchActiveTrip}
+              trip={trip}
+              setTrip={setTrip}
               toggleTag={toggleTag}
             />
 

@@ -1,7 +1,7 @@
 import React from "react";
 import { TRIP_TYPES, TRIP_TAGS } from "../../app/routes/tripConstants";
 
-export default function TripDetailsCard({ activeTrip, patchActiveTrip, toggleTag }) {
+export default function TripDetailsCard({ trip, setTrip, toggleTag }) {
   return (
     <div className="mb-3">
       <div className="row py-2 align-items-start">
@@ -10,8 +10,8 @@ export default function TripDetailsCard({ activeTrip, patchActiveTrip, toggleTag
             <label className="form-label">Name</label>
             <input
               className="form-control"
-              value={activeTrip.name}
-              onChange={(e) => patchActiveTrip({ name: e.target.value })}
+              value={trip.name}
+              onChange={(e) => setTrip((prev) => ({ ...prev, name: e.target.value }))}
             />
           </div>
           
@@ -20,8 +20,8 @@ export default function TripDetailsCard({ activeTrip, patchActiveTrip, toggleTag
               <label className="form-label">Type</label>
               <select
                 className="form-select"
-                value={activeTrip.trip_type}
-                onChange={(e) => patchActiveTrip({ trip_type: e.target.value })}
+                value={trip.trip_type}
+                onChange={(e) => setTrip((prev) => ({ ...prev, trip_type: e.target.value }))}
               >
                 {TRIP_TYPES.map((t) => (
                   <option key={t.id} value={t.id}>
@@ -38,8 +38,8 @@ export default function TripDetailsCard({ activeTrip, patchActiveTrip, toggleTag
                 type="number"
                 min={1}
                 max={60}
-                value={activeTrip.days}
-                onChange={(e) => patchActiveTrip({ days: Number(e.target.value) || 1 })}
+                value={trip.days}
+                onChange={(e) => setTrip((prev) => ({ ...prev, days: Number(e.target.value) || 1 }))}
               />
             </div>
           </div>
@@ -49,7 +49,7 @@ export default function TripDetailsCard({ activeTrip, patchActiveTrip, toggleTag
           <label className="form-label mb-2">Tags (Optional)</label>
           <div className="d-flex flex-wrap gap-2">
             {TRIP_TAGS.map((t) => {
-              const checked = Array.isArray(activeTrip.tags) && activeTrip.tags.includes(t.id);
+              const checked = Array.isArray(trip.tags) && trip.tags.includes(t.id);
 
               return (
                 <button

@@ -26,6 +26,7 @@ body {
     var(--bg);
   color: var(--text);
   min-height: 100vh;
+  overflow-y: scroll;
 
   font-family: Sarabun;
 }
@@ -37,7 +38,11 @@ body {
 .trip-name {
   font-family: Lalezar;
   font-size: 45px;
-  margin-top: 20px;
+  margin-bottom: -10px;
+}
+
+.trip-description {
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .card,

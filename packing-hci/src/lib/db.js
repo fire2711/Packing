@@ -20,7 +20,7 @@ export async function fetchTrips() {
   return data;
 }
 
-export async function createTrip({ name, trip_type, days }) {
+export async function createTrip({ name, trip_type, days, tags }) {
   const user = await getUser();
   if (!user) throw new Error("Not logged in");
 
@@ -31,6 +31,7 @@ export async function createTrip({ name, trip_type, days }) {
       name: name ?? "",
       trip_type: trip_type ?? "general",
       days: days ?? 1,
+      tags: tags ?? [],
     })
     .select("*")
     .single();

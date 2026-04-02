@@ -44,11 +44,13 @@ export const Column = ({
           />
         )}
       </div>
-      {(isEditLike && ((columnSizes.left == columnSizes.right && side == "left") || columnSizes[side] < columnSizes[side == "right" ? "left" : "right"])) && <div className="row gx-0">
-        <div className="col-6 pe-1">
+      {isEditLike && <div className={`row gx-0 checklist-buttons ${
+        ((columnSizes.left == columnSizes.right && side == "left") || columnSizes[side] < columnSizes[side == "right" ? "left" : "right"]) ? "" : "checklist-buttons-hidden"
+      }`}>
+        <div className="col-6 pe-1 checklist-button">
           <button onClick={() => onAddItem(false, side)} className="col-12 btn btn-outline-primary btn-sm">Add Item</button>
         </div>
-        <div className="col-6 ps-1 pe-0">
+        <div className="col-6 ps-1 pe-0 checklist-button">
           <button onClick={() => onAddItem(true, side)} className="col-12 btn btn-outline-primary btn-sm">Add Container</button>
         </div>
       </div>}
