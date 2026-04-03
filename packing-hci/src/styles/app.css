@@ -37,8 +37,8 @@ body {
 
 .trip-name {
   font-family: Lalezar;
-  font-size: 45px;
-  margin-bottom: -10px;
+  font-size: 2.5em;
+  margin-bottom: -5px;
 }
 
 .trip-description {

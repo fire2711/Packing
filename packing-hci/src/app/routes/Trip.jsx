@@ -216,7 +216,7 @@ export default function Trip({ mode = "view" }) {
   }
 
   async function onAddItem(isContainer, column, addToContainer, info) {
-    setFocusOnNewItems(true);
+    setFocusOnNewItems(!info);
     const newItem = {
       id: tmpId(),
       draft: true,

@@ -217,7 +217,6 @@
   padding: 10px;
   overflow: hidden;
   transition: padding 0.2s ease, gap 0.2s ease;
-  min-height: 60px;
 }
 
 .container-list-dragging {
@@ -286,4 +285,136 @@
 .suggestion-icon {
   width: 1em;
   text-align: left;
+}
+
+@media (max-width: 768px) {
+  .checklist-columns,
+  .checklist,
+  .checklist-items {
+    gap: 6px;
+  }
+
+  .item {
+    width: 100%;
+    font-size: 0.8rem;
+  }
+
+  .item-main {
+    padding-right: 10px;
+  }
+
+  .item-grip {
+    width: 24px;
+    height: 8px;
+    min-width: 24px;
+  }
+
+  .item-checkbox {
+    width: 12px;
+  }
+
+  .item-check {
+    width: 8px;
+    right: 8px;
+    top: -0.5px;
+  }
+
+  .item-checkbox {
+    margin: 0 6px;
+  }
+
+  .item-delete {
+    top: 4px;
+    right: 4px;
+    width: 10px;
+    height: 10px;
+    padding: 3px;
+  }
+
+  .item-icon {
+    width: 14px;
+    height: 14px;
+  }
+
+  .item-name {
+    font-size: 14px;
+    width: 30px;
+  }
+
+  .item-content {
+    margin: 4px 0;
+  }
+
+  .item-label {
+    gap: 0px;
+    margin-bottom: -3px;
+  }
+
+  .item-sizes {
+    gap: 3px;
+    height: 16px;
+    margin-left: -1px;
+    margin-bottom: 3px;
+  }
+
+  .item-size {
+    font-size: 11px;
+    padding-left: 1px;
+    padding-right: 1px;
+  }
+
+  .item-size-selected {
+    font-size: 12px;
+  }
+
+  .item-category {
+    gap: 3px;
+    margin-top: 0px;
+    margin-bottom: 2px;
+  }
+
+  .suggestion-button, .checklist-button {
+    font-size: 0.7rem;
+    gap: 4px;
+    padding: 0.12rem 0.2rem;
+  }
+
+  .suggestion-icon {
+    width: 0.85em;
+  }
+
+  .item-category-label {
+    font-size: 12px;
+  }
+
+  .item-category-select {
+    font-size: 11px;
+    padding: 1px 3px 1px 4px;
+  }
+
+  .container-list {
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .container-list-add-item {
+    height: 38px;
+  }
+
+  .checklist-buttons {
+    gap: 6px;
+  }
+
+  .checklist-add-buttons {
+    height: 27px;
+  }
+
+  .container-list-add-item {
+    border-width: 2px;
+  }
+
+  .container-list-add-item-dragging {
+    padding-top: 30px;
+    padding-bottom: 30px;
+  }
 }

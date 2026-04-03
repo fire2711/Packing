@@ -123,7 +123,7 @@ const Item = ({
         <div className="item-content">
           <div className="item-label">
             <FontAwesomeIcon className="item-icon" icon={itemCategories[item.category].icon} />
-            <input ref={nameInputRef} disabled={!isEditLike} style={!isEditLike ? {pointerEvents: "none"} : {}} className="item-name" onChange={changeItemName} placeholder={isContainer ? "Container Name" : "Item Name"} value={item.name}></input>
+            <input ref={nameInputRef} readonly={!isEditLike} style={!isEditLike ? {pointerEvents: "none"} : {}} className="item-name" onChange={changeItemName} placeholder={isContainer ? "Container Name" : "Item Name"} value={item.name}></input>
           </div>
           <div className="item-sizes">
             {(isEditLike ? ["small", "medium", "large"] : [item.size]).map(size => 
