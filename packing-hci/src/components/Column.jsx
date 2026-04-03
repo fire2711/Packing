@@ -37,20 +37,20 @@ export const Column = ({
     const learned = suggestions?.learned;
 
     if (!generated) return;
-    if (generated.length < 5) {
-      setLeftSuggestions([...generated.slice(0, generated.length), ...learned.slice(0, 5 - generated.length)]);
+    if (generated.length < 6) {
+      setLeftSuggestions([...generated.slice(0, generated.length), ...learned.slice(0, 6 - generated.length)]);
     } else {
-      setLeftSuggestions(generated.slice(0, 5));
+      setLeftSuggestions(generated.slice(0, 6));
     }
-    if (!learned) setRightSuggestions(generated.slice(5, 10));
+    if (!learned) setRightSuggestions(generated.slice(6, 12));
     else {
-      if (generated.length < 5) {
-        setRightSuggestions(learned.slice(5 - generated.length, 10 - generated.length));
+      if (generated.length < 6) {
+        setRightSuggestions(learned.slice(6 - generated.length, 12 - generated.length));
       } else {
-        if (learned.length < 5) {
-          setRightSuggestions([...generated.slice(5, 10 - learned.length), ...learned.slice(0, 5)]);
+        if (learned.length < 6) {
+          setRightSuggestions([...generated.slice(6, 12 - learned.length), ...learned.slice(0, 6)]);
         } else {
-          setRightSuggestions(learned.slice(0, 5));
+          setRightSuggestions(learned.slice(0, 6));
         }
       }
     }

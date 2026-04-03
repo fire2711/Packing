@@ -141,7 +141,7 @@ export default function Trip({ mode = "view" }) {
 
       const topNames = Object.entries(counts)
         .sort((a, b) => b[1] - a[1])
-        .slice(0, 15)
+        .slice(0, 20)
         .map(([name]) => {return {
           name: Object.entries(learnedNames[name]).sort((a, b) => b[1] - a[1])[0][0],
           category: Object.entries(learnedCategories[name]).sort((a, b) => b[1] - a[1])[0][0],
