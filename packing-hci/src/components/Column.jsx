@@ -18,6 +18,7 @@ export const Column = ({
   columnSizes,
   columnRef,
   suggestions,
+  onItemPacked,
 }) => {
   const [leftSuggestions, setLeftSuggestions] = useState([]);
   const [rightSuggestions, setRightSuggestions] = useState([]);
@@ -73,6 +74,7 @@ export const Column = ({
             group={side}
             dragging={dragging}
             hoverGroup={hoverGroup}
+            onItemPacked={onItemPacked}
           />
         )}
       </div>

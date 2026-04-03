@@ -20,6 +20,7 @@ import {
   addContainer,
   deleteContainer,
   updateContainer,
+  useTrip,
 } from "../../lib/db";
 import { buildSuggestions } from "../../lib/suggestions";
 import { normalizeName, pct, safeMsg, tmpId } from "./tripUtils";
@@ -240,6 +241,15 @@ export default function Trip({ mode = "view" }) {
     setDeletedItems(prev => [...prev, item_id]);
   }
 
+  async function onItemPacked() {
+    if (isDraft || !tripId) return;
+    try {
+      await useTrip(tripId);
+    } catch {
+      // ignore - just a timestamp update
+    }
+  }
+
   async function onGenerateStarterList() {
     if (!trip || !isEditLike || suggestions.length === 0) return;
 
@@ -280,15 +290,13 @@ export default function Trip({ mode = "view" }) {
   }
 
   async function onResetChecks() {
-    const ok = window.confirm("Reset checked items for this trip? (Items will stay.)");
-    if (!ok) return;
-
     setBusy(true);
     setErr("");
 
     try {
       await resetTripItemsPacked(tripId);
       await resetTripContainersPacked(tripId);
+      await useTrip(tripId);
       await refreshItems();
     } catch (e) {
       setErr(safeMsg(e, "Failed to reset checkmarks"));
@@ -569,6 +577,7 @@ export default function Trip({ mode = "view" }) {
                   columnSizes={columnSizes}
                   columnRef={side == "left" ? leftColumnRef : rightColumnRef}
                   suggestions={suggestions}
+                  onItemPacked={onItemPacked}
                 />
               </div>)}
             </div>

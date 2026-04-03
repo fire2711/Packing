@@ -21,6 +21,7 @@ const Item = ({
   group,
   dragging,
   hoverGroup,
+  onItemPacked,
 }) => {
   const nameInputRef = useRef(null);
   const isContainer = item.category == "Container";
@@ -96,6 +97,7 @@ const Item = ({
       }
     }
     setActiveItem("packed", !item.packed);
+    onItemPacked();
   }
 
   useEffect(() => {
@@ -162,6 +164,7 @@ const Item = ({
           index={i}
           dragging={dragging}
           hoverGroup={hoverGroup}
+          onItemPacked={onItemPacked}
         />)}
         {isEditLike &&
         <button

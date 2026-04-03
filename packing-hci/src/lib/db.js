@@ -32,6 +32,7 @@ export async function createTrip({ name, trip_type, days, tags }) {
       trip_type: trip_type ?? "general",
       days: days ?? 1,
       tags: tags ?? [],
+      last_used_at: new Date().toISOString(),
     })
     .select("*")
     .single();
@@ -44,6 +45,18 @@ export async function updateTrip(tripId, patch) {
   const { data, error } = await supabase
     .from("trips")
     .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq("id", tripId)
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function useTrip(tripId) {
+  const { data, error } = await supabase
+    .from("trips")
+    .update({ last_used_at: new Date().toISOString() })
     .eq("id", tripId)
     .select("*")
     .single();
