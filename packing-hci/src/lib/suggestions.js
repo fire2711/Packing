@@ -167,26 +167,31 @@ function buildDurationExtras(days) {
   return extras;
 }
 
+function withCategories(items) {
+  return items.map(item => {return {...item, category: categoryOf(item.name)}})
+}
+
 export function buildSuggestions({ trip_type, days, tags = [], frequent = [] }) {
   const type = trip_type || "general";
-  const base = BASE_ITEMS_BY_TYPE[type].map(item => {return {...item, category: categoryOf(item.name)}})
-  || BASE_ITEMS_BY_TYPE.general.map(item => {return {...item, category: categoryOf(item.name)}});
+  const base = withCategories(BASE_ITEMS_BY_TYPE[type]) || withCategories(BASE_ITEMS_BY_TYPE.general);
+
+  
 
   const out = [
-    ...buildQuantityItems(days).map(item => {return {...item, category: categoryOf(item.name)}}),
+    ...withCategories(buildQuantityItems(days)),
     ...base,
-    ...buildDurationExtras(days).map(item => {return {...item, category: categoryOf(item.name)}}),
+    ...withCategories(buildDurationExtras(days)),
   ];
 
   const tagList = Array.isArray(tags) ? tags : [];
   for (const t of tagList) {
-    const items = TAG_ITEMS[t];
-    if (items?.length) out.push(...items);
+    const items = withCategories(TAG_ITEMS[t]);
+    if (items?.length) out.unshift(...items);
   }
 
   out.push(...(frequent || []).filter(
     item => !out.some(i => normalizeSuggestionName(i.name) === normalizeSuggestionName(item.name))
-  ).slice(0, 15));
+  ).slice(0, 20));
 
   return out.map((item) => ({
     name: item.name,
@@ -218,7 +223,7 @@ export function categoryOf(name) {
   }
 
   if (
-    /(shirt|pants|shorts|socks|underwear|jacket|hoodie|shoe|shoes|swimsuit|dress|belt|beanie|gloves|hat|outfit|thermal|layers|sleepwear|flip flops)/.test(n)
+    /(shirt|pants|shorts|socks|underwear|jacket|hoodie|shoe|shoes|swimsuit|dress|belt|beanie|gloves|hat|cap|outfit|thermal|layers|sleepwear|flip flops)/.test(n)
   ) {
     return "Clothes";
   }

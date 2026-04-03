@@ -29,7 +29,7 @@ export default function TripProgressCard({
 
         <div className="d-flex flex-wrap gap-2 mt-3">
           <button className="btn btn-outline-danger btn-sm" onClick={onResetChecks} disabled={busy}>
-            Reset
+            {busy ? "Resetting..." : "Reset"}
           </button>
 
           {isEditLike ? (

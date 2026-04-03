@@ -6,7 +6,7 @@ import { useRef, useEffect, useState } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/react';
 import { useSortable } from '@dnd-kit/react/sortable';
 import { updateContainer, updateItem } from '../lib/db';
-import { CollisionPriority } from "@dnd-kit/abstract";
+import { pointerIntersection, directionBiased } from '@dnd-kit/collision';
 
 const Item = ({
   item,
@@ -20,6 +20,8 @@ const Item = ({
   index,
   group,
   dragging,
+  hoverGroup,
+  onItemPacked,
 }) => {
   const nameInputRef = useRef(null);
   const isContainer = item.category == "Container";
@@ -27,15 +29,23 @@ const Item = ({
     id: item.id,
     index: index,
     group: group,
-    type: isContainer ? "container" : "item",
-    accept: "item",
+    type: "item",
+    accept: (draggable) => {
+      return dragging != "Container" || group == "left" || group == "right";
+    },
   });
   const { ref: listRef } = useDroppable({
     id: item.id + "%list",
     accept: "item",
     type: "containerList",
-    collisionPriority: CollisionPriority.Highest,
+    collisionPriority: 2,
+    collisionDetector: pointerIntersection,
   });
+  const { ref: addItemRef, isDropTarget } = useDroppable({
+    id: item.id + "%drop",
+    accept: "item",
+    type: "containerDrop",
+  })
 
   const setActiveItem = (field, value) => {
     setItems(prev => {
@@ -87,6 +97,7 @@ const Item = ({
       }
     }
     setActiveItem("packed", !item.packed);
+    onItemPacked();
   }
 
   useEffect(() => {
@@ -139,7 +150,7 @@ const Item = ({
       {(isContainer && (isEditLike || listItems?.length > 0)) && <div
         ref={listRef}
         key={item.id + "%list"}
-        className={`container-list ${(dragging && dragging != "Container") ? "container-list-dragging" : ""}`}
+        className={`container-list ${hoverGroup == item.id + "%list" ? "container-list-dragging" : ""}`}
       >
         {listItems?.map((listItem, i) => <Item
           item={listItem}
@@ -151,10 +162,14 @@ const Item = ({
           focusOnNewItems={focusOnNewItems}
           group={item.id + "%list"}
           index={i}
+          dragging={dragging}
+          hoverGroup={hoverGroup}
+          onItemPacked={onItemPacked}
         />)}
         {isEditLike &&
         <button
-          className={`container-list-add-item rounded-4`}
+          ref={addItemRef}
+          className={`container-list-add-item rounded-4 ${dragging && dragging != "Container" ? "container-list-add-item-dragging" : ""} ${isDropTarget ? "container-list-add-item-hover" : ""}`}
           onClick={
             () => onAddItem(false, item.id + "%list", true)
           }

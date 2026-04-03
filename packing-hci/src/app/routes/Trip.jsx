@@ -20,6 +20,7 @@ import {
   addContainer,
   deleteContainer,
   updateContainer,
+  useTrip,
 } from "../../lib/db";
 import { buildSuggestions } from "../../lib/suggestions";
 import { normalizeName, pct, safeMsg, tmpId } from "./tripUtils";
@@ -49,6 +50,7 @@ export default function Trip({ mode = "view" }) {
   const [learnedNames, setLearnedNames] = useState([]);
   const [focusOnNewItems, setFocusOnNewItems] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [hoverGroup, setHoverGroup] = useState(null);
   const [columnSizes, setColumnSizes] = useState({ left: 0, right: 0 });
 
   const [deletedItems, setDeletedItems] = useState([]);
@@ -107,6 +109,7 @@ export default function Trip({ mode = "view" }) {
     try {
       const learnedCategories = {};
       const learnedSizes = {};
+      const learnedNames = {};
 
       const allTrips = await fetchTrips();
 
@@ -126,6 +129,7 @@ export default function Trip({ mode = "view" }) {
             const name = normalizeName(item.name);
             learnedCategories[name] = {...learnedCategories[name], [item.category]: (learnedCategories[name]?.[item.category] || 0) + 1};
             learnedSizes[name] = {...learnedSizes[name], [item.size]: (learnedSizes[name]?.[item.size] || 0) + 1};
+            learnedNames[name] = {...learnedNames[name], [item.name]: (learnedNames[name]?.[item.name] || 0) + 1};
             return name;
           }).filter(Boolean)
         );
@@ -137,9 +141,9 @@ export default function Trip({ mode = "view" }) {
 
       const topNames = Object.entries(counts)
         .sort((a, b) => b[1] - a[1])
-        .slice(0, 15)
+        .slice(0, 20)
         .map(([name]) => {return {
-          name: name,
+          name: Object.entries(learnedNames[name]).sort((a, b) => b[1] - a[1])[0][0],
           category: Object.entries(learnedCategories[name]).sort((a, b) => b[1] - a[1])[0][0],
           size: Object.entries(learnedSizes[name]).sort((a, b) => b[1] - a[1])[0][0],
         }});
@@ -211,27 +215,6 @@ export default function Trip({ mode = "view" }) {
     setTrip((prev) => ({ ...prev, tags: next }));
   }
 
-  async function onTogglePacked(item) {
-    setErr("");
-    const nextPacked = !item.packed;
-
-    if (isDraft) {
-      setItems((prev) =>
-        prev.map((x) => (x.id === item.id ? { ...x, packed: nextPacked } : x))
-      );
-      return;
-    }
-
-    setItems((prev) => prev.map((x) => (x.id === item.id ? { ...x, packed: nextPacked } : x)));
-
-    try {
-      await updateItem(item.id, { packed: nextPacked });
-    } catch (e) {
-      setItems((prev) => prev.map((x) => (x.id === item.id ? { ...x, packed: item.packed } : x)));
-      setErr(safeMsg(e, "Failed to update item"));
-    }
-  }
-
   async function onAddItem(isContainer, column, addToContainer, info) {
     setFocusOnNewItems(true);
     const newItem = {
@@ -258,28 +241,12 @@ export default function Trip({ mode = "view" }) {
     setDeletedItems(prev => [...prev, item_id]);
   }
 
-  async function onAddSuggestion(s) {
-    setErr("");
-
-    if (isDraft) {
-      const exists = items.some((x) => normalizeName(x.name) === normalizeName(s.name));
-      if (exists) return;
-
-      setItems((prev) => [
-        ...prev,
-        { id: tmpId(), name: s.name, packed: false },
-      ]);
-      return;
-    }
-
-    setBusy(true);
+  async function onItemPacked() {
+    if (isDraft || !tripId) return;
     try {
-      await addItem(tripId, { name: s.name, packed: false });
-      await refreshItems();
-    } catch (e) {
-      setErr(safeMsg(e, "Failed to add suggestion"));
-    } finally {
-      setBusy(false);
+      await useTrip(tripId);
+    } catch {
+      // ignore - just a timestamp update
     }
   }
 
@@ -323,15 +290,13 @@ export default function Trip({ mode = "view" }) {
   }
 
   async function onResetChecks() {
-    const ok = window.confirm("Reset checked items for this trip? (Items will stay.)");
-    if (!ok) return;
-
     setBusy(true);
     setErr("");
 
     try {
       await resetTripItemsPacked(tripId);
       await resetTripContainersPacked(tripId);
+      await useTrip(tripId);
       await refreshItems();
     } catch (e) {
       setErr(safeMsg(e, "Failed to reset checkmarks"));
@@ -366,7 +331,8 @@ export default function Trip({ mode = "view" }) {
     }
   }
 
-  function onCancelDraft() {
+  async function onCancelDraft() {
+    await refreshItems();
     nav("/");
   }
 
@@ -419,6 +385,7 @@ export default function Trip({ mode = "view" }) {
 
       setDeletedItems([]);
 
+      await refreshItems();
       nav(`/trip/${t.id}`);
     } catch (e) {
       setErr(safeMsg(e, "Failed to create trip"));
@@ -496,6 +463,7 @@ export default function Trip({ mode = "view" }) {
         return newItems;
       });
 
+      await refreshItems();
       nav(`/trip/${tripId}`);
     } catch (e) {
       setErr(safeMsg(e, "Failed to edit trip"));
@@ -505,7 +473,7 @@ export default function Trip({ mode = "view" }) {
   }
 
   useEffect(() => {
-    
+    console.log(items);
   });
 
   const [test, setTest] = useState("");
@@ -528,14 +496,27 @@ export default function Trip({ mode = "view" }) {
         setDragging(activeId
           ? Object.values(items).flat().find(i => i?.id === activeId)?.category
           : null);
+        setHoverGroup(event?.operation?.source?.group || null);
       }}
       onDragOver={(event) => {
         event.preventDefault();
         setItems(items => move(items, event));
+        setHoverGroup(event?.operation?.target?.group || null);
       }}
       onDragEnd={(event) => {
+        if (event?.operation?.target?.id && event?.operation?.source?.id && event.operation.target.id.endsWith("%drop")) {
+          const initialGroup = event.operation.source.initialGroup;
+          const group = event.operation.target.id.split("%", 1)[0];
+          const item = Object.values(items).flat().find(i => i?.id === event.operation.source.id);
+          setItems(items => {return {
+            ...items,
+            [initialGroup]: items[initialGroup]?.filter(x => x.id !== item.id),
+            [group + "%list"]: items[group + "%list"] ? [...items[group + "%list"], item] : [item]}}
+          );
+        }
         setDragging(false);
-    }}
+        setHoverGroup(null);
+      }}
     >
       <div className="container py-4 trip">
         <TripHeader
@@ -570,14 +551,6 @@ export default function Trip({ mode = "view" }) {
               setTrip={setTrip}
               toggleTag={toggleTag}
             />
-
-            {/*<TripSuggestionsCard
-              suggestions={suggestions}
-              busy={busy}
-              generating={generating}
-              onGenerateStarterList={onGenerateStarterList}
-              onAddSuggestion={onAddSuggestion}
-            />*/}
           </>
         ) : null}
 
@@ -603,9 +576,11 @@ export default function Trip({ mode = "view" }) {
                   side={side}
                   children={items[side]}
                   dragging={dragging}
+                  hoverGroup={hoverGroup}
                   columnSizes={columnSizes}
                   columnRef={side == "left" ? leftColumnRef : rightColumnRef}
                   suggestions={suggestions}
+                  onItemPacked={onItemPacked}
                 />
               </div>)}
             </div>

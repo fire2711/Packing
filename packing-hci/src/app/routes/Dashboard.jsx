@@ -43,7 +43,7 @@ export default function Dashboard() {
   const [trips, setTrips] = useState([]);
   const [tripStats, setTripStats] = useState({});
   const [query, setQuery] = useState("");
-  const [sortBy, setSortBy] = useState("modified");
+  const [sortBy, setSortBy] = useState("used");
   const [pinnedTripIds, setPinnedTripIds] = useState([]);
   const [busyId, setBusyId] = useState(null);
   const [openMenuId, setOpenMenuId] = useState(null);
@@ -167,6 +167,10 @@ export default function Dashboard() {
         return (b.days || 0) - (a.days || 0);
       }
 
+      if (sortBy === "daysUp") {
+        return (a.days || 0) - (b.days || 0);
+      }
+
       if (sortBy === "created") {
         const aTime = new Date(a.created_at || 0).getTime();
         const bTime = new Date(b.created_at || 0).getTime();
@@ -178,6 +182,7 @@ export default function Dashboard() {
         const bTime = new Date(b.last_used_at || b.updated_at || b.created_at || 0).getTime();
         return bTime - aTime;
       }
+      
 
       const aTime = new Date(a.updated_at || a.created_at || 0).getTime();
       const bTime = new Date(b.updated_at || b.created_at || 0).getTime();
@@ -254,7 +259,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="container py-4 d-flex flex-column" style={{ minHeight: "calc(100vh - 60px)" }}>
+    <div className="container py-4 d-flex flex-column dashboard" style={{ minHeight: "calc(100vh - 60px)" }}>
       {/* Header */}
       <div className="mb-4">
         <h1 className="h3 mb-1">Dashboard</h1>
@@ -288,11 +293,12 @@ export default function Dashboard() {
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
           >
-            <option value="modified">Last modified</option>
-            <option value="created">Creation date</option>
             <option value="used">Last used</option>
+            <option value="modified">Last modified</option>
+            <option value="created">Last created</option>
             <option value="alpha">Alphabetical</option>
-            <option value="days">Trip length</option>
+            <option value="days">Trip length (descending)</option>
+            <option value="daysUp">Trip length (ascending)</option>
           </select>
         </div>
         

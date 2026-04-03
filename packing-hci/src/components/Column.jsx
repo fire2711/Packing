@@ -1,7 +1,7 @@
 import { useDroppable } from "@dnd-kit/react";
 import { useEffect, useState } from "react";
 import Item from "./Item";
-import { CollisionPriority } from "@dnd-kit/abstract";
+import { pointerIntersection, directionBiased } from "@dnd-kit/collision";
 
 export const Column = ({
   children,
@@ -14,18 +14,21 @@ export const Column = ({
   addDeletedItem,
   focusOnNewItems,
   dragging,
+  hoverGroup,
   columnSizes,
   columnRef,
   suggestions,
+  onItemPacked,
 }) => {
   const [leftSuggestions, setLeftSuggestions] = useState([]);
   const [rightSuggestions, setRightSuggestions] = useState([]);
 
   const {ref, isDropTarget} = useDroppable({
     id: side,
-    accept: ["item", "container"],
+    accept: "item",
     type: "column",
-    collisionPriority: CollisionPriority.Lowest,
+    collisionPriority: 1,
+    collisionDetector: directionBiased,
   });
 
   // Splits suggestions into two columns of 5 items, prioritizing generated suggestions for the left column and learned suggestions for the right column
@@ -34,20 +37,20 @@ export const Column = ({
     const learned = suggestions?.learned;
 
     if (!generated) return;
-    if (generated.length < 5) {
-      setLeftSuggestions([...generated.slice(0, generated.length), ...learned.slice(0, 5 - generated.length)]);
+    if (generated.length < 6) {
+      setLeftSuggestions([...generated.slice(0, generated.length), ...learned.slice(0, 6 - generated.length)]);
     } else {
-      setLeftSuggestions(generated.slice(0, 5));
+      setLeftSuggestions(generated.slice(0, 6));
     }
-    if (!learned) setRightSuggestions(generated.slice(5, 10));
+    if (!learned) setRightSuggestions(generated.slice(6, 12));
     else {
-      if (generated.length < 5) {
-        setRightSuggestions(learned.slice(5 - generated.length, 10 - generated.length));
+      if (generated.length < 6) {
+        setRightSuggestions(learned.slice(6 - generated.length, 12 - generated.length));
       } else {
-        if (learned.length < 5) {
-          setRightSuggestions([...generated.slice(5, 10 - learned.length), ...learned.slice(0, 5)]);
+        if (learned.length < 6) {
+          setRightSuggestions([...generated.slice(6, 12 - learned.length), ...learned.slice(0, 6)]);
         } else {
-          setRightSuggestions(learned.slice(0, 5));
+          setRightSuggestions(learned.slice(0, 6));
         }
       }
     }
@@ -70,6 +73,8 @@ export const Column = ({
             index={index}
             group={side}
             dragging={dragging}
+            hoverGroup={hoverGroup}
+            onItemPacked={onItemPacked}
           />
         )}
       </div>
