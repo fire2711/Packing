@@ -472,12 +472,6 @@ export default function Trip({ mode = "view" }) {
     }
   }
 
-  useEffect(() => {
-    console.log(items);
-  });
-
-  const [test, setTest] = useState("");
-
   if (!trip) {
     return (
       <div className="container py-4">
@@ -555,7 +549,6 @@ export default function Trip({ mode = "view" }) {
         ) : null}
 
         <div className="card card-modern">
-          <h1>{test}</h1>
           <div className="card-body">
             <div className="d-flex justify-content-between align-items-center mb-3">
               <div className="fw-semibold fs-5">Checklist</div>
@@ -563,9 +556,8 @@ export default function Trip({ mode = "view" }) {
             </div>
 
             <div className="checklist-columns">
-              {["left", "right"].map(side => <div className="column-space">
+              {["left", "right"].map(side => <div key={side} className="column-space">
                 <Column
-                  key={side}
                   onAddItem={onAddItem}
                   isEditLike={isEditLike}
                   isDraft={isDraft}

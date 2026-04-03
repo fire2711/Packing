@@ -194,6 +194,7 @@ export function buildSuggestions({ trip_type, days, tags = [], frequent = [] }) 
   ).slice(0, 20));
 
   return out.map((item) => ({
+    id: item.name,
     name: item.name,
     learned: frequent.includes(item),
     category: item.category,
