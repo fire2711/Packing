@@ -31,7 +31,7 @@ body {
   font-family: Sarabun;
 }
 
-.trip {
+.trip, .dashboard {
   max-width: 800px;
 }
 

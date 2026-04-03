@@ -167,20 +167,23 @@ function buildDurationExtras(days) {
   return extras;
 }
 
+function withCategories(items) {
+  return items.map(item => {return {...item, category: categoryOf(item.name)}})
+}
+
 export function buildSuggestions({ trip_type, days, tags = [], frequent = [] }) {
   const type = trip_type || "general";
-  const base = BASE_ITEMS_BY_TYPE[type].map(item => {return {...item, category: categoryOf(item.name)}})
-  || BASE_ITEMS_BY_TYPE.general.map(item => {return {...item, category: categoryOf(item.name)}});
+  const base = withCategories(BASE_ITEMS_BY_TYPE[type]) || withCategories(BASE_ITEMS_BY_TYPE.general);
 
   const out = [
-    ...buildQuantityItems(days),
+    ...withCategories(buildQuantityItems(days)),
     ...base,
-    ...buildDurationExtras(days),
+    ...withCategories(buildDurationExtras(days)),
   ];
 
   const tagList = Array.isArray(tags) ? tags : [];
   for (const t of tagList) {
-    const items = TAG_ITEMS[t];
+    const items = withCategories(TAG_ITEMS[t]);
     if (items?.length) out.push(...items);
   }
 

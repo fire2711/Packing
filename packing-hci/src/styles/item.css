@@ -217,15 +217,20 @@
   padding: 10px;
   overflow: hidden;
   transition: padding 0.2s ease, gap 0.2s ease;
+  min-height: 60px;
 }
 
 .container-list-dragging {
-  padding-top: 50px;
-  gap: 50px;
+  padding-top: 30px;
+  gap: 30px;
+}
+
+.checklist-items {
+  transition: gap 0.2s ease;
 }
 
 .checklist-items-dragging {
-  gap: 50px;
+  gap: 30px;
 }
 
 .container-list-add-item {
@@ -234,12 +239,20 @@
   background: none;
   text-align: center;
   width: 100%;
-  transition: background 0.2s;
+  transition: background 0.2s, padding 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   height: 50px;
 }
 
-.container-list-add-item:hover {
+.container-list-add-item:hover, .container-list-add-item-hover {
   background: rgba(255, 255, 255, 0.15);
+}
+
+.container-list-add-item-dragging {
+  padding-top: 50px;
+  padding-bottom: 50px;
 }
 
 @keyframes fadeIn {

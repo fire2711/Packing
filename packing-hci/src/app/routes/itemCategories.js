@@ -2,7 +2,7 @@ import { faSuitcase, faShirt, faCubes, faMobileScreen, faShower, faIdCard } from
 
 export const itemCategories = {
   General: {
-    color: "#3F93D5",
+    color: "#3b6ecc",
     icon: faCubes,
   },
   Container: {
@@ -22,7 +22,7 @@ export const itemCategories = {
     icon: faMobileScreen,
   },
   Toiletries: {
-    color: "#62A5A5",
+    color: "#46a7bf",
     icon: faShower,
   },
 };

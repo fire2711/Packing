@@ -254,7 +254,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="container py-4 d-flex flex-column" style={{ minHeight: "calc(100vh - 60px)" }}>
+    <div className="container py-4 d-flex flex-column dashboard" style={{ minHeight: "calc(100vh - 60px)" }}>
       {/* Header */}
       <div className="mb-4">
         <h1 className="h3 mb-1">Dashboard</h1>

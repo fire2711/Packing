@@ -1,7 +1,7 @@
 import { useDroppable } from "@dnd-kit/react";
 import { useEffect, useState } from "react";
 import Item from "./Item";
-import { CollisionPriority } from "@dnd-kit/abstract";
+import { pointerIntersection, directionBiased } from "@dnd-kit/collision";
 
 export const Column = ({
   children,
@@ -14,6 +14,7 @@ export const Column = ({
   addDeletedItem,
   focusOnNewItems,
   dragging,
+  hoverGroup,
   columnSizes,
   columnRef,
   suggestions,
@@ -23,9 +24,10 @@ export const Column = ({
 
   const {ref, isDropTarget} = useDroppable({
     id: side,
-    accept: ["item", "container"],
+    accept: "item",
     type: "column",
-    collisionPriority: CollisionPriority.Lowest,
+    collisionPriority: 1,
+    collisionDetector: directionBiased,
   });
 
   // Splits suggestions into two columns of 5 items, prioritizing generated suggestions for the left column and learned suggestions for the right column
@@ -70,6 +72,7 @@ export const Column = ({
             index={index}
             group={side}
             dragging={dragging}
+            hoverGroup={hoverGroup}
           />
         )}
       </div>
