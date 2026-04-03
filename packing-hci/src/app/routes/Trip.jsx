@@ -331,7 +331,8 @@ export default function Trip({ mode = "view" }) {
     }
   }
 
-  function onCancelDraft() {
+  async function onCancelDraft() {
+    await refreshItems();
     nav("/");
   }
 
@@ -384,6 +385,7 @@ export default function Trip({ mode = "view" }) {
 
       setDeletedItems([]);
 
+      await refreshItems();
       nav(`/trip/${t.id}`);
     } catch (e) {
       setErr(safeMsg(e, "Failed to create trip"));
@@ -461,6 +463,7 @@ export default function Trip({ mode = "view" }) {
         return newItems;
       });
 
+      await refreshItems();
       nav(`/trip/${tripId}`);
     } catch (e) {
       setErr(safeMsg(e, "Failed to edit trip"));
